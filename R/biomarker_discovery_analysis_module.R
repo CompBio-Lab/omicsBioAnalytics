@@ -9,7 +9,7 @@ model_training = function(omics_data, response, alphaMin=0, alphaMax=1,
   ctrl <- caret::trainControl(method = "repeatedcv",
                               number = 5,
                               repeats = n_repeats,
-                              summaryFunction = twoClassSummary,
+                              summaryFunction = caret::twoClassSummary,
                               classProbs = TRUE,
                               savePredictions = TRUE)
   set.seed(123)
