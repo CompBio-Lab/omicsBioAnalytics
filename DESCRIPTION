@@ -63,7 +63,8 @@ Imports:
     UpSetR (>= 1.4.0),
     visNetwork (>= 2.1.2)
 Suggests: 
-    testthat (>= 3.2.0)
+    testthat (>= 3.2.0),
+    shinytest2 (>= 0.4.1)
 License: MIT
 URL: https://github.com/singha53/omicsBioAnalytics
 Encoding: UTF-8

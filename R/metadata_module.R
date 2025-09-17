@@ -39,7 +39,7 @@ metadata_ui <- function(id) {
             shiny::h3("Descriptive statistics"),
             shiny::tableOutput(ns("descriptive_stat")),
             shiny::h3(shiny::textOutput(ns("test_title"))),
-            shiny::verbatimTextOutput(ns("test")),
+            shiny::verbatimTextOutput(ns("test_output")),
             shiny::uiOutput(ns("show_assumptions_button")),
             shiny::h3("Conclusion"),
             shiny::textOutput(ns("conclusion"))
@@ -231,7 +231,7 @@ metadata_server <- function(input, output, session,
         }
       })
 
-      output$test <- shiny::renderPrint({
+      output$test_output <- shiny::renderPrint({
         if (metadata_ui_vars$test() == "lr") {
           coef(summary(fit()))
         } else {

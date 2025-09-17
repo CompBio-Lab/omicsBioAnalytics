@@ -1,12 +1,12 @@
 
-function(input, output, session) {
+server <- function(input, output, session) {
   ns <- session$ns
 
-  # Do not show analysis sidemenu at startup!!
-  output$analysisRan <- reactive({
-    returnedValue = FALSE
-    return(returnedValue)
-  })
+  # Track analysis state
+  analysisRan <- reactiveVal(FALSE)
+
+  # Expose state to UI
+  output$analysisRan <- reactive(analysisRan())
   outputOptions(output, "analysisRan", suspendWhenHidden = FALSE)
 
   ################################################################################
@@ -137,12 +137,7 @@ function(input, output, session) {
         type = "message", duration = 10)
     })
 
-    # show analysis sidemenu when run analysis button is pressed
-    output$analysisRan <- reactive({
-      returnedValue = TRUE
-      return(returnedValue)
-    })
-    outputOptions(output, "analysisRan", suspendWhenHidden = FALSE)
+    analysisRan(TRUE)
   })
 
   ################################################################################

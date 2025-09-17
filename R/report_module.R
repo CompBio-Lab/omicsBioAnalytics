@@ -12,11 +12,11 @@ report_ui <- function(id) {
     shiny::sidebarLayout(
       shiny::sidebarPanel(
         shiny::textInput(ns("title"), "Title", value = "",
-          placeholder = "Title of report..."),
+                         placeholder = "Title of report..."),
         shiny::textInput(ns("author"), "Author", value = "",
-          placeholder = "Author..."),
+                         placeholder = "Author..."),
         shiny::textInput(ns("aff"), "Affiliation", value = "",
-          placeholder = "Affiliation..."),
+                         placeholder = "Affiliation..."),
         shiny::selectInput(
           inputId = ns("figs"),
           label = "Figures:",
@@ -38,7 +38,7 @@ report_ui <- function(id) {
             rows = 3,
             style = "width:80%;")),
         shiny::actionButton(ns("h1Btn"), "Insert section",
-          color = "primary", style = "height: 20%"),
+                            color = "primary", style = "height: 20%"),
         shiny::uiOutput(ns("dragAndDrop"))
       )
     )
@@ -98,24 +98,28 @@ report_server <- function(input, output, session, report_ui_vars) {
   ns <- session$ns
 
   shiny::observe({
+    pngs <- list.files(tempdir(), pattern = "(?i)\\.png$", ignore.case = TRUE)
+    png_names <- sub("(?i)\\.png$", "", pngs, perl = TRUE)
     shiny::updateSelectInput(session,
-      inputId = ns("figs"),
-      label = "Figures:",
-      choices = c("None", gsub(".png", "", grep(".png", list.files(tempdir()), value = TRUE))),
-      selected = "None"
+                             inputId = ns("figs"),
+                             label = "Figures:",
+                             choices = c("None", png_names),
+                             selected = "None"
     )
   })
 
   shiny::observeEvent(report_ui_vars$cFig(), {
     inFile <- report_ui_vars$cFig()
-    if (is.null(inFile))
-      return()
-    file.copy(inFile$datapath, file.path(tempdir(), inFile$name) )
+    req(inFile)
+    file.copy(inFile$datapath, file.path(tempdir(), inFile$name), overwrite = TRUE)
+
+    pngs <- list.files(tempdir(), pattern = "(?i)\\.png$", ignore.case = TRUE)
+    png_names <- sub("(?i)\\.png$", "", pngs, perl = TRUE)
     shiny::updateSelectInput(session,
-      inputId = ns("figs"),
-      label = "Figures:",
-      choices = c("None", gsub(".png", "", grep(".png", list.files(tempdir()), value = TRUE))),
-      selected = "None"
+                             inputId = ns("figs"),
+                             label = "Figures:",
+                             choices = c("None", png_names),
+                             selected = "None"
     )
   })
 
@@ -124,17 +128,16 @@ report_server <- function(input, output, session, report_ui_vars) {
 
   shiny::observeEvent(report_ui_vars$h1Btn(), {
     nr <- report_ui_vars$h1Btn()
-    print(paste0("add item: ", nr))
     id <- ns(paste0("input", report_ui_vars$h1Btn()))
 
     tracker$section[[id]]$txt <- report_ui_vars$markdowninput()
     tracker$section[[id]]$fig <- report_ui_vars$figs()
     element <- shiny::div(style = "display: flex; justify-content: space-between; align-items: center; width: 100%",
-      id = ns(paste0("newInput", nr)),
-      report_ui_vars$markdowninput(),
-      shiny::br(),
-      ifelse(report_ui_vars$figs() == "None", "", paste("Attached Fig: ", report_ui_vars$figs())),
-      shiny::actionButton(ns(paste0('removeBtn',nr)), 'Remove')
+                          id = ns(paste0("newInput", nr)),
+                          report_ui_vars$markdowninput(),
+                          shiny::br(),
+                          ifelse(report_ui_vars$figs() == "None", "", paste("Attached Fig: ", report_ui_vars$figs())),
+                          shiny::actionButton(ns(paste0('removeBtn',nr)), 'Remove')
     )
     list_of_elements[[id]] <<- element
 
@@ -199,21 +202,21 @@ report_server <- function(input, output, session, report_ui_vars) {
 
       # Set up parameters to pass to Rmd document
       params <- list(title = report_ui_vars$title(),
-        author = report_ui_vars$author(),
-        affiliation = report_ui_vars$aff(),
-        section = tracker$section,
-        ord = names(list_of_elements))
+                     author = report_ui_vars$author(),
+                     affiliation = report_ui_vars$aff(),
+                     section = tracker$section,
+                     ord = names(list_of_elements))
 
       # Knit the document, passing in the `params` list, and eval it in a
       # child of the global environment (this isolates the code in the document
       # from the code in this app).
       shiny::withProgress(message = 'Download in progress',
-        detail = 'This may take a while...', value = 0, {
-          rmarkdown::render(tempReport, output_file = file,
-            params = params,
-            envir = new.env(parent = globalenv())
-          )
-        })
+                          detail = 'This may take a while...', value = 0, {
+                            rmarkdown::render(tempReport, output_file = file,
+                                              params = params,
+                                              envir = new.env(parent = globalenv())
+                            )
+                          })
     }
   )
 
@@ -222,12 +225,12 @@ report_server <- function(input, output, session, report_ui_vars) {
   # outfile <- tempfile(fileext = '.png')
 
   output$myImage <- shiny::renderImage({
-
-    # Return a list containing the filename
-    list(src = paste0(tempdir(), "/", report_ui_vars$figs(), ".png"),
-      contentType = 'image/png',
-      width = 400,
-      height = 300,
-      alt = "No image was selected from side panel.")
+    sel <- report_ui_vars$figs()
+    req(sel, sel != "None")
+    list(
+      src = file.path(tempdir(), paste0(sel, ".png")),
+      contentType = "image/png",
+      width = 400, height = 300
+    )
   }, deleteFile = FALSE)
 }

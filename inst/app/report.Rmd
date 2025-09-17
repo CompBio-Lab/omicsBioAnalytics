@@ -19,18 +19,34 @@ library(knitr)
 ```
 
 ```{r}
-results <- character()
-for(i in params$ord){
-  # Put everything into the results vector
-  # results <- c(results, "\n\n",
-  #                       knit_print(params$section[[i]]$txt))
-  if(params$section[[i]]$fig == "None"){
-    results <- c(results, "\n\n", params$section[[i]]$txt)
-  } else {
-    filename <- paste0(tempdir(), "/", params$section[[i]]$fig, ".png")
-    results <- c(results, "\n\n", knitr:::wrap(include_graphics(filename)), "\n\n", params$section[[i]]$txt)
-  }
+# results <- character()
+# for(i in params$ord){
+#   # Put everything into the results vector
+#   # results <- c(results, "\n\n",
+#   #                       knit_print(params$section[[i]]$txt))
+#   if(params$section[[i]]$fig == "None"){
+#     results <- c(results, "\n\n", params$section[[i]]$txt)
+#   } else {
+#     filename <- paste0(tempdir(), "/", params$section[[i]]$fig, ".png")
+#     results <- c(results, "\n\n", knitr:::wrap(include_graphics(filename)), "\n\n", params$section[[i]]$txt)
+#   }
+# 
+# }
+# asis_output(results)
 
+results <- character()
+
+for (i in params$ord) {
+  if (identical(params$section[[i]]$fig, "None")) {
+    results <- c(results, "", params$section[[i]]$txt)
+  } else {
+    filename <- file.path(tempdir(), paste0(params$section[[i]]$fig, ".png"))
+    # Emit the image as Markdown so it knits in HTML/PDF/Word
+    img_md <- sprintf("![](%s)", knitr::normalizePath(filename, winslash = "/"))
+    results <- c(results, "", img_md, "", params$section[[i]]$txt)
+  }
 }
-asis_output(results)
+
+knitr::asis_output(paste(results, collapse = "\n\n"))
+
 ```

@@ -99,10 +99,21 @@ data(pathwayDB)
 - RShiny app as an R-package
 - voice-enabled analytics using an Alexa Skill
 
-## Room for improvements
+## Testing
 
-- use of Shiny modules to improve server-side code
-- use of R6Class to improve code
+```{r}
+shinytest2::record_test("inst/app")
+
+devtools::load_all(".")
+testthat::test_dir("tests/testthat")
+devtools::test()
+
+## compare snapshots
+testthat::snapshot_review('shinytest2/')
+```
+
+
+
 
 ## Contributing
 
