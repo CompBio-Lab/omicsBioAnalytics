@@ -186,38 +186,54 @@ data_upload_server <- function(input, output, session,
   # if user wants to analyze the example heart failure data
   output$heart_failure <- shiny::downloadHandler(
     filename = "heartFailureDatasets_omicsBioAnalytics.zip",
+    contentType = "application/zip",
     content = function(file) {
-      files <- NULL;
+      # Work in a temp directory (Windows-safe)
+      withr::with_tempdir({
+        files <- character(0)
 
-      # loop through the sheets
-      for (i in 1:length(heart_failure_data)) {
-        #write each sheet to a csv file, save the name
-        file_name <- paste0(names(heart_failure_data)[i], ".txt")
-        write.table(heart_failure_data[[i]],
-          file_name, sep = "\t",
-          row.names = FALSE)
-        files <- c(file_name, files)
-      }
-      # create the zip file
-      zip(file, files)
+        # write each data.frame to TSV
+        for (nm in names(heart_failure_data)) {
+          fn <- paste0(nm, ".txt")
+          write.table(
+            heart_failure_data[[nm]],
+            file = fn,
+            sep = "\t",
+            row.names = FALSE
+          )
+          files <- c(files, fn)
+        }
+
+        # Zip using pure R (no system zip.exe needed)
+        zip::zipr(zipfile = file, files = files)
+      })
     }
   )
 
   # if user wants to analyze the example COVID-19 data
   output$covid19 <- shiny::downloadHandler(
     filename = "COVID19Datasets_omicsBioAnalytics.zip",
+    contentType = "application/zip",
     content = function(file) {
-      files <- NULL;
+      # Work in a temp directory (Windows-safe)
+      withr::with_tempdir({
+        files <- character(0)
 
-      #loop through the sheets
-      for (i in 1:length(covid19_data)) {
-        #write each sheet to a txt file, save the name
-        file_name <- paste0(names(covid19_data)[i], ".txt")
-        write.table(covid19_data[[i]], file_name, sep = "\t", row.names = FALSE)
-        files <- c(file_name, files)
-      }
-      #create the zip file
-      zip(file, files)
+        # write each data.frame to TSV
+        for (nm in names(covid19_data)) {
+          fn <- paste0(nm, ".txt")
+          write.table(
+            covid19_data[[nm]],
+            file = fn,
+            sep = "\t",
+            row.names = FALSE
+          )
+          files <- c(files, fn)
+        }
+
+        # Zip using pure R (no system zip.exe needed)
+        zip::zipr(zipfile = file, files = files)
+      })
     }
   )
 
