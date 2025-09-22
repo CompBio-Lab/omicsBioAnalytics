@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE, cache = FALSE, warning = FALSE, message = FAL
 ## Installing
 - assuming R is installed. 
 
-```r
+```{r}
 install.packages("devtools")
 devtools::install_github("singha53/omicsBioAnalytics")
 ```
@@ -24,7 +24,7 @@ devtools::install_github("singha53/omicsBioAnalytics")
 
 - Step 1) add inst/app/makeEnvVars.R with the following contents (.Renvion worked locally but not on shinyapps.io):
 
-```r
+```{r}
 saveRDS("your-s3-bucket-name", "S3BUCKET.rds")
 saveRDS("your-aws-access-key", "AWS_ACCESS_KEY_ID.rds")
 saveRDS("your-aws-secret-access-key", "AWS_SECRET_ACCESS_KEY.rds")
@@ -36,7 +36,7 @@ saveRDS("your-dynamodb-table-name", "TABLE_NAME.rds")
 
 - Step 2) run the Shiny webapp
 
-```r
+```{r}
 library(omicsBioAnalytics);
 omicsBioAnalytics::start_app()
 ```
@@ -55,7 +55,7 @@ omicsBioAnalytics::start_app()
 
 #### How to use?
 
-```r
+```{r}
 library(omicsBioAnalytics);
 data(covid19)
 ```
@@ -69,7 +69,7 @@ data(covid19)
 
 #### How to use?
 
-```r
+```{r}
 library(omicsBioAnalytics);
 data(heartFailure)
 ```
@@ -83,7 +83,7 @@ data(heartFailure)
 
 #### How to use?
 
-```r
+```{r}
 library(omicsBioAnalytics);
 data(pathwayDB)
 ```
@@ -111,9 +111,6 @@ devtools::test()
 ## compare snapshots
 testthat::snapshot_review('shinytest2/')
 ```
-
-
-
 
 ## Contributing
 
