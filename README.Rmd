@@ -139,6 +139,6 @@ Note: if you build your own omicsBioAnalytics R-package and host it on your own 
 
 ## Copyright and license
 
-Copyright 2020 AMRITPAL SINGH Inc.
+Copyright 2025 AMRITPAL SINGH Inc.
 
 The code in this project is licensed under MIT license.

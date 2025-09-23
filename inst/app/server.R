@@ -163,7 +163,7 @@ server <- function(input, output, session) {
         easyClose = TRUE,
         footer = modalButton("Close"),
         # this binds to output$msg in the module (namespaced automatically)
-        shiny::textOutput(ns("msg"))
+        shiny::htmlOutput(ns("msg"))
       )
     )
   }
@@ -210,8 +210,16 @@ server <- function(input, output, session) {
   } else {
     observeEvent(data_upload_ui_vars$alexa(), {
       showAlexaModal(session)
-      output$msg <- renderText({
-        "This functionality has been suspended due to cost considerations of S3 and DynamoDB. Please see the Overview tab for a link to the source code (github repo) and step-by-step setup instructions for the complementary Alexa Skill. Sorry for the inconvenience."
+      output$msg <- renderUI({
+        tags$p(
+          "This functionality has been suspended due to cost considerations of S3 and DynamoDB. ",
+          "Please see the source code ",
+          tags$a(href = "https://github.com/CompBio-Lab/omics-bioanalytics-alexa-skill",
+                 target = "_blank", rel = "noopener noreferrer",
+                 "here"),
+          ") and step-by-step setup instructions for the complementary Alexa Skill. ",
+          "Sorry for the inconvenience."
+        )
       })
     })
   }
