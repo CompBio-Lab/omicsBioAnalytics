@@ -12,17 +12,32 @@ data_upload_ui <- function(id) {
     shiny::fluidRow(
       shiny::column(12,
         shiny::h2("Web-based analytics"),
-        shiny::radioButtons(ns("sep"), "file type:",
-          choices = c(Comma = ",", Tab = "\t"), selected = ",")),
-      shiny::column(6, shiny::fileInput(inputId = ns("demo"),
-        label = "Metadata")),
+        shiny::radioButtons(
+          ns("sep"),
+          "File type (delimiter):",
+          choices = c("Comma-separated (.csv)" = ",", "Tab-separated (.tsv/.txt)" = "\t"),
+          selected = ","
+        )
+        ),
+      shiny::column(6,
+                    shiny::fileInput(
+                      inputId = ns("demo"),
+                      label   = "Metadata",
+                      accept  = c(".csv", ".tsv", ".txt")
+                    )
+        ),
       shiny::column(6, shiny::uiOutput(ns("response_var"))),
       shiny::column(6, shiny::uiOutput(ns("ref_var")))
     ),
     shiny::fluidRow(
-      shiny::column(6, shiny::fileInput(ns("omics_data"),
-        label = "Omics data (1 or more csv files)",
-        multiple = TRUE))),
+      shiny::column(6,
+                    shiny::fileInput(
+                      ns("omics_data"),
+                      label   = "Omics data (upload one or more files)",
+                      multiple = TRUE,
+                      accept   = c(".csv", ".tsv", ".txt")
+                    )
+        )),
     shiny::fluidRow(
       shiny::column(6,
         shiny::actionButton(ns("run"),
@@ -106,138 +121,224 @@ data_upload_ui_vars <- function(input, output, session) {
   )
 }
 
-#' Data Upload module server-side processings
+#' Data Upload module server-side processing (with extension validation)
 #'
-#' This module produces the Data Upload panel for a given dataset
-#'
-#' @param input,output,session standard \code{shiny} boilerplate
-#' @param demo data frame with metadata
-#' @param dataset data frame containing omic variables
-#' @param response factor containing cateogories for the response variable
-#' @param metadata_vars list of reactive vars (cont_var, transform)
-#' @param cont_var character selected continuous variable
-#' @param transform boolean TRUE: log2-transformation
+#' @param input,output,session standard shiny boilerplate
+#' @param heart_failure_data list of data.frames for example download
+#' @param covid19_data list of data.frames for example download
+#' @param data_upload_ui_vars list of reactives from data_upload_ui_vars()
 #' @export
 data_upload_server <- function(input, output, session,
-  heart_failure_data, covid19_data, data_upload_ui_vars) {
+                               heart_failure_data, covid19_data, data_upload_ui_vars) {
   ns <- session$ns
 
-  output$uploadErrorMsg = renderUI({
-    validate(
-      need(data_upload_ui_vars$demo(), "Metadata is required with at least 1 categorical variable!"),
-      need(data_upload_ui_vars$omics_data(), "At least one omics data is required!"),
-      need(data_upload_ui_vars$response_var(), "A response variable is required!")
-      # need(length(unique(data_upload_server_vars$get_demo_data()[, data_upload_ui_vars$response_var()])) > 1, "At least 2 categories required!")
-    )
+  ## ---- Extension validation helpers --------------------------------------
+
+  # Map the selected delimiter to allowed file extensions
+  allowed_ext <- shiny::reactive({
+    if (identical(data_upload_ui_vars$sep(), ",")) c("csv") else c("tsv", "txt")
   })
+
+  # Human-readable label for messages: ".csv" or ".tsv or .txt"
+  allowed_ext_label <- shiny::reactive({
+    paste0(".", allowed_ext(), collapse = " or .")
+  })
+
+  # Build extension mismatch messages (if any)
+  ext_error_msgs <- shiny::reactive({
+    msgs <- character(0)
+
+    # Demo file
+    if (!is.null(data_upload_ui_vars$demo())) {
+      demo_name <- data_upload_ui_vars$demo()$name
+      demo_ext  <- tolower(tools::file_ext(demo_name))
+      if (!demo_ext %in% allowed_ext()) {
+        msgs <- c(
+          msgs,
+          sprintf("Metadata file must match the selected type (%s): %s",
+                  allowed_ext_label(), demo_name)
+        )
+      }
+    }
+
+    # Omics files (possibly multiple)
+    if (!is.null(data_upload_ui_vars$omics_data())) {
+      om_names <- data_upload_ui_vars$omics_data()$name
+      om_exts  <- tolower(tools::file_ext(om_names))
+      bad_idx  <- which(!(om_exts %in% allowed_ext()))
+      if (length(bad_idx)) {
+        msgs <- c(
+          msgs,
+          sprintf("These omics files do not match the selected type (%s): %s",
+                  allowed_ext_label(), paste(om_names[bad_idx], collapse = ", "))
+        )
+      }
+    }
+
+    if (length(msgs)) msgs else NULL
+  })
+
+  # TRUE only when all uploaded files match the chosen delimiter (or none uploaded yet)
+  files_ext_ok <- shiny::reactive({
+    is_demo_ok <- is.null(data_upload_ui_vars$demo()) ||
+      tolower(tools::file_ext(data_upload_ui_vars$demo()$name)) %in% allowed_ext()
+
+    is_omics_ok <- is.null(data_upload_ui_vars$omics_data()) ||
+      all(tolower(tools::file_ext(data_upload_ui_vars$omics_data()$name)) %in% allowed_ext())
+
+    is_demo_ok && is_omics_ok
+  })
+
+  ## ---- Error / validation UI ---------------------------------------------
+
+  output$uploadErrorMsg <- shiny::renderUI({
+    msgs <- character(0)
+
+    # Required inputs
+    if (is.null(data_upload_ui_vars$demo())) {
+      msgs <- c(msgs, "Metadata is required with at least 1 categorical variable!")
+    }
+    if (is.null(data_upload_ui_vars$omics_data())) {
+      msgs <- c(msgs, "At least one omics data file is required!")
+    }
+    if (is.null(data_upload_ui_vars$response_var()) || isTRUE(is.na(data_upload_ui_vars$response_var()))) {
+      msgs <- c(msgs, "A response variable is required!")
+    }
+
+    # Extension mismatches
+    if (!is.null(ext_error_msgs())) msgs <- c(msgs, ext_error_msgs())
+
+    if (length(msgs)) {
+      shiny::div(
+        class = "alert alert-danger",
+        shiny::tags$ul(lapply(msgs, shiny::tags$li))
+      )
+    } else {
+      NULL
+    }
+  })
+
+  ## ---- Readers (guarded by files_ext_ok) ---------------------------------
 
   # Demographics data upload
   get_demo_data <- shiny::reactive({
-    req(data_upload_ui_vars$demo())
-    demo_data <- read.table(data_upload_ui_vars$demo()$datapath,
-      header = TRUE, sep = data_upload_ui_vars$sep())
-    demo_data
+    shiny::req(data_upload_ui_vars$demo(), files_ext_ok())
+    read.table(
+      data_upload_ui_vars$demo()$datapath,
+      header = TRUE,
+      sep = data_upload_ui_vars$sep()
+    )
   })
 
-  # omics data upload
+  # Omics data upload
   get_omics_data <- shiny::reactive({
-    req(data_upload_ui_vars$omics_data())
-    omics_data <- lapply(data_upload_ui_vars$omics_data()$datapath, read.table,
+    shiny::req(data_upload_ui_vars$omics_data(), files_ext_ok())
+    omics_data <- lapply(
+      data_upload_ui_vars$omics_data()$datapath,
+      read.table,
       header = TRUE,
-      sep = data_upload_ui_vars$sep())
-    names(omics_data) <- gsub(".csv|.tsv|.txt", "",
-      data_upload_ui_vars$omics_data()$name)
+      sep = data_upload_ui_vars$sep()
+    )
+    # Clean list names: strip extension (case-insensitive)
+    names(omics_data) <- sub("\\.(csv|tsv|txt)$", "",
+                             data_upload_ui_vars$omics_data()$name,
+                             ignore.case = TRUE)
     omics_data
   })
 
+  ## ---- Response / reference selection UIs --------------------------------
 
-  # show column names of demo dataset
+  # Show candidate categorical columns from demo
   output$response_var <- shiny::renderUI({
     shiny::req(get_demo_data())
     keep_cols <- apply(get_demo_data(), 2, function(i) {
-      ifelse(length(table(as.character(i))) < 9 &
-          min(table(as.character(i))) > 1, TRUE, FALSE)
+      # categorical-ish: < 9 unique and min cell count > 1
+      tab <- table(as.character(i))
+      length(tab) < 9 && (length(tab) == 0 || min(tab) > 1)
     })
-    shiny::selectInput(ns("response_var"),
+    shiny::selectInput(
+      ns("response_var"),
       "Select response variable",
-      colnames(get_demo_data()[, keep_cols]))
+      choices = colnames(get_demo_data()[, keep_cols, drop = FALSE])
+    )
   })
 
+  # Reference level picker (wait until response_var chosen)
   output$ref_var <- shiny::renderUI({
-    shiny::selectInput(ns("ref_var"),
+    shiny::req(get_demo_data(), data_upload_ui_vars$response_var())
+    shiny::selectInput(
+      ns("ref_var"),
       "Select reference level",
-      unique(get_demo_data()[, data_upload_ui_vars$response_var()]))
+      choices = unique(get_demo_data()[, data_upload_ui_vars$response_var(), drop = TRUE])
+    )
   })
 
+  # Factor response with chosen reference
   response <- shiny::reactive({
-    relevel(factor(as.character(get_demo_data()[,
-      data_upload_ui_vars$response_var()])),
-    ref = data_upload_ui_vars$ref_var())})
+    shiny::req(get_demo_data(), data_upload_ui_vars$response_var(), data_upload_ui_vars$ref_var())
+    stats::relevel(
+      factor(as.character(get_demo_data()[, data_upload_ui_vars$response_var()])),
+      ref = data_upload_ui_vars$ref_var()
+    )
+  })
 
-  # determine which datasets to perform gene set enrichment analysis on?
+  ## ---- Pathway analysis dataset chooser (robust to missing 'kegg') -------
+
   perform_pathway_analysis <- shiny::reactive({
-    dataset_names <- sapply(names(get_omics_data()), function(i){
-      length(intersect(colnames(get_omics_data()[[i]]), unlist(kegg))) > 5
-    })
+    shiny::req(get_omics_data())
+    # Guard if 'kegg' not available
+    if (!exists("kegg", inherits = TRUE)) return(character(0))
+    kegg_genes <- tryCatch(unlist(kegg), error = function(e) character(0))
+    if (!length(kegg_genes)) return(character(0))
+
+    dataset_names <- vapply(names(get_omics_data()), function(nm) {
+      length(intersect(colnames(get_omics_data()[[nm]]), kegg_genes)) > 5
+    }, logical(1))
     names(dataset_names)[dataset_names]
   })
 
-  # if user wants to analyze the example heart failure data
+  ## ---- Example datasets: download handlers -------------------------------
+
+  # Heart failure example bundle (TSVs zipped)
   output$heart_failure <- shiny::downloadHandler(
     filename = "heartFailureDatasets_omicsBioAnalytics.zip",
     contentType = "application/zip",
     content = function(file) {
-      # Work in a temp directory (Windows-safe)
       withr::with_tempdir({
         files <- character(0)
-
-        # write each data.frame to TSV
         for (nm in names(heart_failure_data)) {
           fn <- paste0(nm, ".txt")
-          write.table(
-            heart_failure_data[[nm]],
-            file = fn,
-            sep = "\t",
-            row.names = FALSE
-          )
+          utils::write.table(heart_failure_data[[nm]], file = fn, sep = "\t", row.names = FALSE)
           files <- c(files, fn)
         }
-
-        # Zip using pure R (no system zip.exe needed)
         zip::zipr(zipfile = file, files = files)
       })
     }
   )
 
-  # if user wants to analyze the example COVID-19 data
+  # COVID-19 example bundle (TSVs zipped)
   output$covid19 <- shiny::downloadHandler(
     filename = "COVID19Datasets_omicsBioAnalytics.zip",
     contentType = "application/zip",
     content = function(file) {
-      # Work in a temp directory (Windows-safe)
       withr::with_tempdir({
         files <- character(0)
-
-        # write each data.frame to TSV
         for (nm in names(covid19_data)) {
           fn <- paste0(nm, ".txt")
-          write.table(
-            covid19_data[[nm]],
-            file = fn,
-            sep = "\t",
-            row.names = FALSE
-          )
+          utils::write.table(covid19_data[[nm]], file = fn, sep = "\t", row.names = FALSE)
           files <- c(files, fn)
         }
-
-        # Zip using pure R (no system zip.exe needed)
         zip::zipr(zipfile = file, files = files)
       })
     }
   )
 
-  return(list(get_demo_data = get_demo_data,
-    response = response,
-    get_omics_data = get_omics_data,
-    perform_pathway_analysis = perform_pathway_analysis))
+  ## ---- Return reactives for downstream modules ---------------------------
+
+  return(list(
+    get_demo_data            = get_demo_data,
+    response                 = response,
+    get_omics_data           = get_omics_data,
+    perform_pathway_analysis = perform_pathway_analysis
+  ))
 }
