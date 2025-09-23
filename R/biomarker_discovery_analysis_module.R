@@ -26,6 +26,11 @@ biomarker_discovery_analysis_ui <- function(id, dataset_names, response, respons
 
               # Input: Slider for the number of observations to generate ----
               shiny::h4("Setting:"),
+              numericInput(inputId = ns("seed"),
+                           label = "Set seed:",
+                           value = 42,
+                           min = 1, max = 1000,
+                           step = 1),
               shiny::checkboxGroupInput(ns("selectedGroups"),
                 label = paste0("Select two groups from the ", response_var, " response variable to compare (required):"),
                 choices = levels(response),
@@ -152,6 +157,9 @@ biomarker_discovery_analysis_ui_vars <- function(input, output, session) {
 
   return(
     list(
+      seed = shiny::reactive({
+        input$seed
+      }),
       selectedGroups = shiny::reactive({
         input$selectedGroups
       }),
@@ -253,7 +261,7 @@ biomarker_discovery_analysis_server <- function(input, output, session, datasets
         summaryFunction = twoClassSummary,
         classProbs = TRUE,
         savePredictions = TRUE)
-      set.seed(123)
+      set.seed(biomarker_discovery_analysis_ui_vars$seed())
       ctrl$index <- caret::createMultiFolds(subset_response, 5, n_repeats)
     } else {
       ctrl <- caret::trainControl(method = "repeatedcv",
@@ -262,7 +270,7 @@ biomarker_discovery_analysis_server <- function(input, output, session, datasets
         summaryFunction = twoClassSummary,
         classProbs = TRUE,
         savePredictions = TRUE)
-      set.seed(456)
+      set.seed(biomarker_discovery_analysis_ui_vars$seed())
       ctrl$index <- caret::createMultiFolds(subset_response, 10, n_repeats)
     }
 
