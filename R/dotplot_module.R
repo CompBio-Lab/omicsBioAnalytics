@@ -20,13 +20,6 @@ dotplot_ui <- function(id, panel_names) {
         width = "100%",
         click = shiny::hoverOpts(id = ns("dotplot_click"))),
       shiny::actionButton(ns("dotplot_options_button"), "Plot options"),
-      shinyBS::bsModal(ns("dotplot_options"), "Plot options", ns("dotplot_options_button"), size = "large",
-        shiny::sliderInput(ns("hjust"), "horizontal justification:", min = 0, max = 1, value = 0.5),
-        shiny::sliderInput(ns("vjust"), "vertical justification:", min = 0, max = 1, value = 0.5),
-        shiny::sliderInput(ns("xAngle"), "x-axis text angle:", min = 0, max = 180, value = 0),
-        shiny::sliderInput(ns("xSize"), "x-axis text size:", min = 5, max = 20, value = 7),
-        shiny::sliderInput(ns("ySize"), "y-axis text size:", min = 5, max = 20, value = 7)
-      )
     )
   )
 }
@@ -82,6 +75,37 @@ dotplot_ui_vars <- function(input, output, session) {
 #' @param pcs data frame containing principal components
 #' @export
 dotplot_server <- function(input, output, session, data, dotplot_ui_vars) {
+  ns <- session$ns
+  observeEvent(input$dotplot_options_button, {
+    shiny::showModal(
+      shiny::modalDialog(
+        title = "Plot options",
+        shiny::sliderInput(ns("hjust"),
+                           "horizontal justification:",
+                           min = 0, max = 1, value = 0.5
+        ),
+        shiny::sliderInput(ns("vjust"),
+                           "vertical justification:",
+                           min = 0, max = 1, value = 0.5
+        ),
+        shiny::sliderInput(ns("xAngle"),
+                           "x-axis text angle:",
+                           min = 0, max = 180, value = 0
+        ),
+        shiny::sliderInput(ns("xSize"),
+                           "x-axis text size:",
+                           min = 5, max = 20, value = 7
+        ),
+        shiny::sliderInput(ns("ySize"),
+                           "y-axis text size:",
+                           min = 5, max = 20, value = 7
+        ),
+        size = "l",           # "large" modal
+        easyClose = TRUE,
+        footer = modalButton("Close")
+      )
+    )
+  })
 
   output$dotplot <- shiny::renderPlot({
     filter(data, panel == dotplot_ui_vars$panel_name()) %>%

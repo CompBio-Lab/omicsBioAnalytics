@@ -42,6 +42,14 @@ saveRDS("your-dynamodb-table-name", "TABLE_NAME.rds")
 
 > The above script is sourced in global.R and the env are set locally and on shinyapps.io at runtime.
 
+- Step 2) update alexa flag
+* see line 49 in global.R
+
+```{r}
+alexa_skill_exists <- TRUE # change from FALSE
+```
+
+
 ## Programming/Scripting Languages
 ### Web-app
 - RShiny (v3.6.1)

@@ -155,8 +155,22 @@ server <- function(input, output, session) {
   # Voice-enabled analytics
   #
   ################################################################################
+  # helper to show a Bootstrap-5-safe modal
+  showAlexaModal <- function(session, title = "Omics BioAnalytics Alexa Skill", msg = "") {
+    showModal(
+      modalDialog(
+        title = title,
+        easyClose = TRUE,
+        footer = modalButton("Close"),
+        # this binds to output$msg in the module (namespaced automatically)
+        shiny::textOutput(ns("msg"))
+      )
+    )
+  }
+
   if (alexa_skill_exists) {
     observeEvent(data_upload_ui_vars$alexa(), {
+      showAlexaModal(session)  # open the modal immediately
       withProgress(message = 'Alexa is taking a look.',
         detail = 'This may take a while...', value = 0, {
 
@@ -195,6 +209,7 @@ server <- function(input, output, session) {
     })
   } else {
     observeEvent(data_upload_ui_vars$alexa(), {
+      showAlexaModal(session)
       output$msg <- renderText({
         "This functionality has been suspended due to cost considerations of S3 and DynamoDB. Please see the Overview tab for a link to the source code (github repo) and step-by-step setup instructions for the complementary Alexa Skill. Sorry for the inconvenience."
       })

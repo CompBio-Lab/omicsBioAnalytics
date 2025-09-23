@@ -53,17 +53,16 @@ data_upload_ui <- function(id) {
             href = "https://www.youtube.com/watch?v=oglZDscpbAU"))))
     ),
     shiny::fluidRow(
-      shiny::column(12,
+      shiny::column(
+        12,
         shiny::h2("Voice-enabled analytics"),
-        shiny::actionButton(ns("alexa"),
+        shiny::actionButton(
+          ns("alexa"),
           "Alexa, analyze my data!",
           icon = shiny::icon("user"),
-          style = "color: #fff; background-color:
-          #337ab7; border-color: #2e6da4"),
-        shinyBS::bsModal(ns("modal"),
-          "Omics BioAnalytics Alexa Skill",
-          ns("alexa"), size = "large",
-          shiny::textOutput("msg"))),
+          style = "color:#fff; background-color:#337ab7; border-color:#2e6da4"
+        )
+      ),
       shiny::uiOutput(ns("errMsgAlexa"))
     )
   )

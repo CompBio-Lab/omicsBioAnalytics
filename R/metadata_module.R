@@ -244,19 +244,35 @@ metadata_server <- function(input, output, session,
             output$show_assumptions_button <- shiny::renderUI({
               if (metadata_ui_vars$test() == "lr") {
                 ns <- session$ns
-                shiny::fluidRow(shiny::column(6,
-                  shiny::h6(shiny::textOutput(ns("lm_assumptions")))),
-                  shiny::column(6, shiny::actionButton(ns("lr"),
-                    "linear regression assumptions",
-                    icon = shiny::icon("table")),
-                    shinyBS::bsModal(ns("hypothesisTests"),
-                      "Assessment of linear regression assumptions.",
-                      ns("lr"), size = "large",
-                      DT::dataTableOutput(ns("tbl")))))
+                shiny::fluidRow(
+                  shiny::column(
+                    6,
+                    shiny::h6(shiny::textOutput(ns("lm_assumptions")))
+                  ),
+                  shiny::column(
+                    6,
+                    shiny::actionButton(
+                      ns("lr"),
+                      "linear regression assumptions",
+                      icon = shiny::icon("table")
+                    )
+                  )
+                )
               } else {
                 return(NULL)
               }
             })
+      })
+      shiny::observeEvent(input$lr, {
+        showModal(
+          modalDialog(
+            title = "Linear Regression Assumptions",
+            DT::dataTableOutput(session$ns("tbl")),
+            size = "l",
+            easyClose = TRUE,
+            footer = modalButton("Close")
+          )
+        )
       })
 
       output$descriptive_stat <- shiny::renderTable({

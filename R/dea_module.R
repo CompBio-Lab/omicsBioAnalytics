@@ -51,28 +51,21 @@ dea_ui <- function(id, datasetName, dataset, response) {
                 colnames(dataset), max_options = ncol(dataset))),
             shiny::column(4,
               shiny::actionButton(ns("dePlotOps_button"), "Plot options"),
-              shinyBS::bsModal(ns("dePlotOps"), "Plot options",
-                ns("dePlotOps_button"), size = "large",
-                shiny::sliderInput(ns("dePlotOps_hjust"), "horizontal justification:", min = 0, max = 1, value = 0.5),
-                shiny::sliderInput(ns("dePlotOps_vjust"), "vertical justification:", min = 0, max = 1, value = 0.5),
-                shiny::sliderInput(ns("dePlotOps_xAngle"), "x-axis text angle:", min = 0, max = 180, value = 0),
-                shiny::sliderInput(ns("dePlotOps_xSize"), "x-axis text size:", min = 5, max = 20, value = 7),
-                shiny::sliderInput(ns("dePlotOps_ySize"), "y-axis text size:", min = 5, max = 20, value = 7)
-              ),
-              shinyBS::bsButton(ns("plot_help"), label = "", icon = shiny::icon("question"), style = "color:gray", size = "extra-small"),
-              shinyBS::bsPopover(id = ns("plot_help"), title = "Tests",
-                                 content = "The red diamond depicts the mean expression in the group.",
-                                 placement = "right",
-                                 trigger = "click",  options = NULL)
+              shiny::actionButton(
+                ns("plot_help"), label = "", icon = shiny::icon("question"),
+                class = "btn btn-link", style = "color:gray; padding-left:6px;"
+              )
             )
           )),
         plotly::plotlyOutput(ns("boxplot"))
       )),
     shiny::fluidRow(shiny::column(8, shiny::h4(shiny::textOutput(ns("statement")))),
       shiny::column(4,
-        shiny::actionButton(ns("button"), "Significant variables", icon = shiny::icon("table")),
-        shinyBS::bsModal(ns("modal"), "Differentially expressed variables.", ns("button"), size = "large",
-          DT::dataTableOutput(ns("sig"))),
+        shiny::actionButton(
+          ns("button"),
+          "Significant variables",
+          icon = shiny::icon("table")
+        ),
         shiny::downloadButton(ns("topTable"), label = shiny::HTML("<span style='font-size:1em;'>Download</span>"), style = "color: #fff; background-color: #619CFF; border-color: #2e6da4")
 
       )),
@@ -82,14 +75,11 @@ dea_ui <- function(id, datasetName, dataset, response) {
       shiny::fluidRow(align = 'center',
         shiny::h1("Geneset Enrichment Analysis"),
         shiny::column(8, shiny::sliderInput(ns("enrichmentSlider"), "Select number of pathways:", min = 0, max = 10, value = 5, step = 2)),
-        shiny::column(4,
-          shiny::actionButton(ns("pathwayEnrichmentOps_button"), "Plot options"),
-          shinyBS::bsModal(ns("pathwayEnrichmentOps"), "Plot options", ns("pathwayEnrichmentOps_button"), size = "large",
-            shiny::sliderInput(ns("pathwayEnrichmentOps_hjust"), "horizontal justification:", min = 0, max = 1, value = 0.5),
-            shiny::sliderInput(ns("pathwayEnrichmentOps_vjust"), "vertical justification:", min = 0, max = 1, value = 0.5),
-            shiny::sliderInput(ns("pathwayEnrichmentOps_xAngle"), "x-axis text angle:", min = 0, max = 180, value = 0),
-            shiny::sliderInput(ns("pathwayEnrichmentOps_xSize"), "x-axis text size:", min = 5, max = 20, value = 7),
-            shiny::sliderInput(ns("pathwayEnrichmentOps_ySize"), "y-axis text size:", min = 5, max = 20, value = 7)
+        shiny::column(
+          4,
+          shiny::actionButton(
+            ns("pathwayEnrichmentOps_button"),
+            "Plot options"
           )
         ),
         shiny::column(12,
@@ -180,8 +170,83 @@ dea_ui_vars <- function(input, output, session) {
 #' @param response factor containing cateogories for the response variable
 #' @param eda_ui_vars list of one element ncomp(containing number of PCs)
 #' @export
-dea_server <- function(input, output, session, datasetName, dataset, response, response_var, perform_pathway_analysis, group_colors, dea_ui_vars) {
+dea_server <- function(input, output, session, datasetName, dataset, response,
+                       response_var, perform_pathway_analysis, group_colors,
+                       dea_ui_vars) {
   ns <- session$ns
+
+  plotOps <- reactiveValues(hjust = 0.5, vjust = 0.5, xAngle = 0, xSize = 7, ySize = 7)
+  observeEvent(dea_ui_vars$dePlotOps_button(), {
+    showModal(
+      modalDialog(
+        title = "Plot options",
+        easyClose = TRUE,
+        size = "l",
+        footer = modalButton("Close"),
+        shiny::sliderInput(ns("dePlotOps_hjust"), "horizontal justification:", min = 0, max = 1, value = 0.5),
+        shiny::sliderInput(ns("dePlotOps_vjust"), "vertical justification:",   min = 0, max = 1, value = 0.5),
+        shiny::sliderInput(ns("dePlotOps_xAngle"), "x-axis text angle:",       min = 0, max = 180, value = 0),
+        shiny::sliderInput(ns("dePlotOps_xSize"),  "x-axis text size:",        min = 5, max = 20, value = 7),
+        shiny::sliderInput(ns("dePlotOps_ySize"),  "y-axis text size:",        min = 5, max = 20, value = 7)
+      )
+    )
+  })
+  observeEvent(input$applyPlotOps, {
+    plotOps$hjust  <- input$dePlotOps_hjust
+    plotOps$vjust  <- input$dePlotOps_vjust
+    plotOps$xAngle <- input$dePlotOps_xAngle
+    plotOps$xSize  <- input$dePlotOps_xSize
+    plotOps$ySize  <- input$dePlotOps_ySize
+    removeModal()
+  })
+  observeEvent(input$plot_help, {
+    showModal(modalDialog(
+      title = "Information",
+      "The red diamond depicts the mean expression in the group.",
+      easyClose = TRUE, footer = modalButton("Close")
+    ))
+  })
+  observeEvent(input$button, {
+    shiny::showModal(
+      shiny::modalDialog(
+        title = "Differentially expressed variables.",
+        DT::dataTableOutput(ns("sig")),
+        size = "l",   # large
+        easyClose = TRUE,
+        footer = modalButton("Close")
+      )
+    )
+  })
+  observeEvent(input$pathwayEnrichmentOps_button, {
+    shiny::showModal(
+      shiny::modalDialog(
+        title = "Plot options",
+        shiny::sliderInput(ns("pathwayEnrichmentOps_hjust"),
+                           "horizontal justification:",
+                           min = 0, max = 1, value = 0.5
+        ),
+        shiny::sliderInput(ns("pathwayEnrichmentOps_vjust"),
+                           "vertical justification:",
+                           min = 0, max = 1, value = 0.5
+        ),
+        shiny::sliderInput(ns("pathwayEnrichmentOps_xAngle"),
+                           "x-axis text angle:",
+                           min = 0, max = 180, value = 0
+        ),
+        shiny::sliderInput(ns("pathwayEnrichmentOps_xSize"),
+                           "x-axis text size:",
+                           min = 5, max = 20, value = 7
+        ),
+        shiny::sliderInput(ns("pathwayEnrichmentOps_ySize"),
+                           "y-axis text size:",
+                           min = 5, max = 20, value = 7
+        ),
+        size = "l",
+        easyClose = TRUE,
+        footer = modalButton("Close")
+      )
+    )
+  })
 
   shiny::observeEvent(dea_ui_vars$fdr(), {
     shiny::observeEvent(dea_ui_vars$comparison(), {

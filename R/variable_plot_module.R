@@ -7,17 +7,13 @@
 #' @export
 variable_plot_ui <- function(id) {
   ns <- shiny::NS(id)
-  shiny::fluidRow(align = 'center',
-    shiny::column(12,
+
+  shiny::fluidRow(
+    align = "center",
+    shiny::column(
+      12,
       plotly::plotlyOutput(ns("variable_plot"), width = "100%"),
-      shiny::actionButton(ns("variable_options_button"), "Plot options"),
-      shinyBS::bsModal(ns("variable_options"), "Plot options", ns("variable_options_button"), size = "large",
-        shiny::sliderInput(ns("hjust"), "horizontal justification:", min = 0, max = 1, value = 0.5),
-        shiny::sliderInput(ns("vjust"), "vertical justification:", min = 0, max = 1, value = 0.5),
-        shiny::sliderInput(ns("xAngle"), "x-axis text angle:", min = 0, max = 180, value = 0),
-        shiny::sliderInput(ns("xSize"), "x-axis text size:", min = 5, max = 20, value = 7),
-        shiny::sliderInput(ns("ySize"), "y-axis text size:", min = 5, max = 20, value = 7)
-      )
+      shiny::actionButton(ns("variable_options_button"), "Plot options")
     )
   )
 }
@@ -37,24 +33,22 @@ variable_plot_ui <- function(id) {
 #' }
 #' @export
 variable_plot_ui_vars <- function(input, output, session) {
-  return(
-    list(
-      xAngle = shiny::reactive({
-        input$xAngle
-      }),
-      hjust = shiny::reactive({
-        input$hjust
-      }),
-      vjust = shiny::reactive({
-        input$vjust
-      }),
-      xSize = shiny::reactive({
-        input$xSize
-      }),
-      ySize = shiny::reactive({
-        input$ySize
-      })
-    )
+  list(
+    xAngle = shiny::reactive({
+      if (is.null(input$xAngle)) 0 else input$xAngle
+    }),
+    hjust = shiny::reactive({
+      if (is.null(input$hjust)) 0.5 else input$hjust
+    }),
+    vjust = shiny::reactive({
+      if (is.null(input$vjust)) 0.5 else input$vjust
+    }),
+    xSize = shiny::reactive({
+      if (is.null(input$xSize)) 7 else input$xSize
+    }),
+    ySize = shiny::reactive({
+      if (is.null(input$ySize)) 7 else input$ySize
+    })
   )
 }
 
@@ -67,13 +61,29 @@ variable_plot_ui_vars <- function(input, output, session) {
 #' @param response_var data frame containing principal components
 #' @export
 variable_plot_server <- function(input, output, session, response, response_var, datasets, selected_variable, group_colors, variable_plot_ui_vars) {
-
+  ns <- session$ns
   print("inside variable_plot_server function")
   print(names(datasets))
   print(selected_variable$panel)
   print(selected_variable$feature)
   exp <- datasets[[selected_variable$panel]][, selected_variable$feature]
   print(exp)
+
+  observeEvent(input$variable_options_button, {
+    showModal(
+      modalDialog(
+        title = "Plot options",
+        easyClose = TRUE,
+        size = "l",
+        footer = modalButton("Close"),
+        shiny::sliderInput(ns("hjust"),  "horizontal justification:", min = 0, max = 1,   value = isolate(variable_plot_ui_vars$hjust())),
+        shiny::sliderInput(ns("vjust"),  "vertical justification:",   min = 0, max = 1,   value = isolate(variable_plot_ui_vars$vjust())),
+        shiny::sliderInput(ns("xAngle"), "x-axis text angle:",        min = 0, max = 180, value = isolate(variable_plot_ui_vars$xAngle())),
+        shiny::sliderInput(ns("xSize"),  "x-axis text size:",         min = 5, max = 20,  value = isolate(variable_plot_ui_vars$xSize())),
+        shiny::sliderInput(ns("ySize"),  "y-axis text size:",         min = 5, max = 20,  value = isolate(variable_plot_ui_vars$ySize()))
+      )
+    )
+  })
 
   output$variable_plot <- plotly::renderPlotly({
     if (length(exp) > 0 & length(selected_variable$feature) > 0) {
