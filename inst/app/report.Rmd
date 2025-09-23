@@ -1,52 +1,90 @@
 ---
-title: "`r params$title`"
-author: "`r params$author`$^1$"
-date: "$^1$ `r params$affiliation`"
-output: word_document
+title: "`r if (is.null(params$title)) '' else params$title`"
+author: "`r if (is.null(params$author)) '' else params$author`"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  word_document:
+    toc: false
+    number_sections: false
 params:
-  section: NA
-  ord: NA
-  title: NA
-  author: NA
-  affiliation: NA
+  # Each element of `section` is a list with:
+  #   - txt : character (markdown text for the section body)
+  #   - fig : optional character (basename of a PNG saved to tempdir(), no extension)
+  section: null
+  # If `ord` is NULL, all sections are used in their original order
+  ord: null
+  title: null
+  author: null
+  affiliation: null
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, cache = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(
+  echo    = FALSE,
+  cache   = FALSE,
+  warning = FALSE,
+  message = FALSE
+)
 
-library(flextable)
-library(knitr)
+# Helper: treat NULL/NA as empty string
+nz <- function(x, alt = "") {
+  if (is.null(x)) return(alt)
+  if (length(x) == 1 && is.atomic(x) && is.na(x)) return(alt)
+  x
+}
+
+# Normalize a figure name to a ".png" filename
+as_png_name <- function(x) {
+  if (is.null(x) || identical(x, "None")) return(NULL)
+  if (grepl("(?i)\\.png$", x)) x else paste0(x, ".png")
+}
 ```
 
 ```{r}
-# results <- character()
-# for(i in params$ord){
-#   # Put everything into the results vector
-#   # results <- c(results, "\n\n",
-#   #                       knit_print(params$section[[i]]$txt))
-#   if(params$section[[i]]$fig == "None"){
-#     results <- c(results, "\n\n", params$section[[i]]$txt)
-#   } else {
-#     filename <- paste0(tempdir(), "/", params$section[[i]]$fig, ".png")
-#     results <- c(results, "\n\n", knitr:::wrap(include_graphics(filename)), "\n\n", params$section[[i]]$txt)
-#   }
-# 
-# }
-# asis_output(results)
+# Optionally print an affiliation line beneath the title block
+affil <- nz(params$affiliation, "")
+if (nz(affil) != "") {
+  knitr::asis_output(paste0("\n\n*Affiliation:* ", affil, "\n"))
+}
+```
 
-results <- character()
+```{r}
+# Determine which sections to render
+ord <- params$ord
+if (is.null(ord)) ord <- seq_along(params$section)
 
-for (i in params$ord) {
-  if (identical(params$section[[i]]$fig, "None")) {
-    results <- c(results, "", params$section[[i]]$txt)
-  } else {
-    filename <- file.path(tempdir(), paste0(params$section[[i]]$fig, ".png"))
-    # Emit the image as Markdown so it knits in HTML/PDF/Word
-    img_md <- sprintf("![](%s)", knitr::normalizePath(filename, winslash = "/"))
-    results <- c(results, "", img_md, "", params$section[[i]]$txt)
+out <- character()
+
+for (i in ord) {
+  sec <- params$section[[i]]
+  if (is.null(sec)) next
+
+  txt <- nz(sec$txt, "")
+  fig <- as_png_name(sec$fig)   # <-- handles with/without ".png"
+
+  # Add figure if provided and available; expects it to live in tempdir()
+  if (!is.null(fig)) {
+    fpath <- file.path(tempdir(), fig)
+
+    # For debugging during development, you can print the path:
+    # cat("Looking for:", fpath, "\n")
+
+    if (file.exists(fpath)) {
+      # Emit Markdown image with width hint (Pandoc will embed it in the DOCX)
+      img_md <- sprintf("![](%s){width=100%%}", normalizePath(fpath, winslash = "/"))
+      out <- c(out, img_md)
+    } else {
+      # Optional: show a small note if the file wasn't found
+      # out <- c(out, sprintf("_Figure '%s' not found in tempdir()._", fig))
+    }
   }
+
+  # Append the section text (can contain Markdown)
+  if (nz(txt) != "") out <- c(out, txt)
 }
 
-knitr::asis_output(paste(results, collapse = "\n\n"))
+# Join everything with blank lines so Markdown renders cleanly
+knitr::asis_output(paste(out, collapse = "\n\n"))
 
 ```
+

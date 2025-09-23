@@ -3,7 +3,9 @@ output: github_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, cache = FALSE, 
+                      warning = FALSE, message = FALSE,
+                      eval = FALSE)
 ```
 
 <p align="center">

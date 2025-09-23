@@ -10,18 +10,24 @@ splom_ui <- function(id) {
   shiny::plotOutput(ns("pca_plot"), width = "100%")
 }
 
-#' Scatterplot matrix module server-side processings
-#'
-#' This module produces the pvalue heatmap
-#'
-#' @param input,output,session standard \code{shiny} boilerplate
-#' @param demo data frame with metadata
-#' @param pcs data frame containing principal components
+#' Scatterplot matrix module server-side processing (no extra deps)
 #' @export
 splom_server <- function(input, output, session, pcs, response, group_colors) {
+
+  png_path <- file.path(tempdir(), "pca_splom.png")
+  grDevices::png(png_path, width = 1600, height = 1200, res = 150, bg = "white")
+  omicsBioAnalytics::pcaPairs(
+    pcs = pcs,
+    y   = response,
+    col = group_colors[1:nlevels(response)]
+  )
+  grDevices::dev.off()
+
   output$pca_plot <- shiny::renderPlot({
-    omicsBioAnalytics::pcaPairs(pcs = pcs,
-      y = response,
+    omicsBioAnalytics::pcaPairs(
+      pcs = pcs,
+      y   = response,
       col = group_colors[1:nlevels(response)]
-  )})
+    )
+  })
 }

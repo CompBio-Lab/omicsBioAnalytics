@@ -20,7 +20,7 @@ report_ui <- function(id) {
         shiny::selectInput(
           inputId = ns("figs"),
           label = "Figures:",
-          choices = c("None", c("pca", "volcano_mrna")),
+          choices = "None",
           size = 10, selectize = FALSE,
           selected = "None"
         ),
@@ -29,7 +29,7 @@ report_ui <- function(id) {
       ),
       shiny::mainPanel(
         shiny::h1("Add section"),
-        shiny::imageOutput("myImage"),
+        shiny::imageOutput(ns("myImage")),
         shiny::div(
           shiny::h4("Text"),
           shiny::tags$textarea(
@@ -39,7 +39,11 @@ report_ui <- function(id) {
             style = "width:80%;")),
         shiny::actionButton(ns("h1Btn"), "Insert section",
                             color = "primary", style = "height: 20%"),
-        shiny::uiOutput(ns("dragAndDrop"))
+        shiny::uiOutput(ns("dragAndDrop")),
+        shiny::hr(),
+        shiny::h4("Files in tempdir()"),
+        shiny::actionButton(ns("refresh_tempdir"), "Refresh"),
+        DT::dataTableOutput(ns("tempdir_list"))
       )
     )
   )
@@ -87,62 +91,102 @@ report_ui_vars <- function(input, output, session) {
   )
 }
 
-#' Data Upload module server-side processings
-#'
-#' This module produces the Data Upload panel for a given dataset
-#'
-#' @param input,output,session standard \code{shiny} boilerplate
-#' @param report_ui_vars list of reactive vars ()
+#' Generate Report module server-side processing
+#' Populates the Figures selectInput with .png filenames from tempdir()
+#' and auto-refreshes every 3 seconds.
 #' @export
 report_server <- function(input, output, session, report_ui_vars) {
   ns <- session$ns
 
-  shiny::observe({
-    pngs <- list.files(tempdir(), pattern = "(?i)\\.png$", ignore.case = TRUE)
-    png_names <- sub("(?i)\\.png$", "", pngs, perl = TRUE)
-    shiny::updateSelectInput(session,
-                             inputId = ns("figs"),
-                             label = "Figures:",
-                             choices = c("None", png_names),
-                             selected = "None"
+  # --- helper: list .png files in tempdir (filenames only) ---
+  list_pngs <- function() {
+    list.files(tempdir(), pattern = "(?i)\\.png$", full.names = FALSE)
+  }
+
+  # --- helper: build a tidy table of files in tempdir() ---
+  build_tempdir_df <- function() {
+    files <- list.files(tempdir(), full.names = TRUE)
+    if (!length(files)) {
+      return(data.frame(
+        File = character(), Size_KB = numeric(),
+        Modified = as.POSIXct(character()), Path = character(),
+        stringsAsFactors = FALSE
+      ))
+    }
+    info <- file.info(files)
+    out <- data.frame(
+      File     = basename(files),
+      Size_KB  = round(info$size / 1024, 1),
+      Modified = info$mtime,
+      Path     = files,
+      stringsAsFactors = FALSE,
+      row.names = NULL,
+      check.names = FALSE
     )
-  })
+    out[order(out$Modified, decreasing = TRUE), ]
+  }
 
-  shiny::observeEvent(report_ui_vars$cFig(), {
-    inFile <- report_ui_vars$cFig()
-    req(inFile)
-    file.copy(inFile$datapath, file.path(tempdir(), inFile$name), overwrite = TRUE)
+  # --- auto refresh timer (every 3s) ---
+  rt <- shiny::reactiveTimer(3000, session)
 
-    pngs <- list.files(tempdir(), pattern = "(?i)\\.png$", ignore.case = TRUE)
-    png_names <- sub("(?i)\\.png$", "", pngs, perl = TRUE)
-    shiny::updateSelectInput(session,
-                             inputId = ns("figs"),
-                             label = "Figures:",
-                             choices = c("None", png_names),
-                             selected = "None"
-    )
-  })
-
+  # --- keep an ordered list of added sections for drag-n-drop ---
   list_of_elements <- list()
   tracker <- shiny::reactiveValues(section = list(), fig = list())
 
+  # --- auto-refresh: tempdir table + Figures choices (with .png extension) ---
+  shiny::observe({
+    rt()  # tick
+
+    # 1) Update the tempdir() table
+    df <- build_tempdir_df()
+    output$tempdir_list <- DT::renderDataTable(
+      df,
+      options = list(pageLength = 10, order = list(list(2, "desc"))),
+      rownames = FALSE
+    )
+
+    # 2) Update Figures select with actual .png filenames
+    pngs <- list_pngs()
+    choices <- c("None", pngs)
+    cur <- isolate(input$figs)
+    sel <- if (is.null(cur) || !(cur %in% choices)) "None" else cur
+    print(sel)
+    shiny::updateSelectInput(
+      session,
+      inputId = "figs",
+      label   = "Figures:",
+      choices = c("None", pngs),  # << includes .png extensions
+      selected = sel
+    )
+  })
+
+  # --- handle user-uploaded custom figure: copy into tempdir() ---
+  shiny::observeEvent(report_ui_vars$cFig(), {
+    inFile <- report_ui_vars$cFig(); req(inFile)
+    file.copy(inFile$datapath, file.path(tempdir(), inFile$name), overwrite = TRUE)
+    # next timer tick will refresh the selectInput automatically
+  })
+
+  # --- add a new manuscript section (text + optional figure) ---
   shiny::observeEvent(report_ui_vars$h1Btn(), {
     nr <- report_ui_vars$h1Btn()
-    id <- ns(paste0("input", report_ui_vars$h1Btn()))
+    id <- ns(paste0("input", nr))
 
     tracker$section[[id]]$txt <- report_ui_vars$markdowninput()
-    tracker$section[[id]]$fig <- report_ui_vars$figs()
-    element <- shiny::div(style = "display: flex; justify-content: space-between; align-items: center; width: 100%",
-                          id = ns(paste0("newInput", nr)),
-                          report_ui_vars$markdowninput(),
-                          shiny::br(),
-                          ifelse(report_ui_vars$figs() == "None", "", paste("Attached Fig: ", report_ui_vars$figs())),
-                          shiny::actionButton(ns(paste0('removeBtn',nr)), 'Remove')
+    tracker$section[[id]]$fig <- report_ui_vars$figs()  # now stores filename.png or "None"
+
+    element <- shiny::div(
+      style = "display:flex; justify-content:space-between; align-items:center; width:100%",
+      id = ns(paste0("newInput", nr)),
+      report_ui_vars$markdowninput(),
+      shiny::br(),
+      ifelse(report_ui_vars$figs() == "None", "", paste("Attached Fig:", report_ui_vars$figs())),
+      shiny::actionButton(ns(paste0("removeBtn", nr)), "Remove")
     )
     list_of_elements[[id]] <<- element
 
-    # Render manuscript section on UI
-    output$dragAndDrop = shiny::renderUI({
+    # Render the drag-and-drop UI
+    output$dragAndDrop <- shiny::renderUI({
       shiny::fluidRow(
         shiny::column(
           width = 12,
@@ -156,14 +200,12 @@ report_server <- function(input, output, session, report_ui_vars) {
       )
     })
 
-    shiny::observeEvent(input[[paste0('removeBtn', nr)]],{
-      print(paste0("delete item: ", nr))
-      shiny::removeUI(
-        selector = paste0("#", ns(paste0("newInput", nr)))
-      )
+    # Remove button for this section
+    shiny::observeEvent(input[[paste0("removeBtn", nr)]], {
+      shiny::removeUI(selector = paste0("#", ns(paste0("newInput", nr))))
       list_of_elements <<- list_of_elements[names(list_of_elements) != ns(paste0("input", nr))]
 
-      output$tbl = shiny::renderUI({
+      output$dragAndDrop <- shiny::renderUI({
         shiny::fluidRow(
           shiny::column(
             width = 12,
@@ -175,62 +217,61 @@ report_server <- function(input, output, session, report_ui_vars) {
           )
         )
       })
-
-      print(list_of_elements)
     })
-
-    print(list_of_elements)
-    print("---------------")
-
   })
 
-  ## drag and drop is fixed
+  # --- keep list_of_elements in user-selected order ---
   shiny::observe({
-    list_of_elements <<- list_of_elements[input$rank_list_1]
+    ord <- input$rank_list_1
+    if (!is.null(ord)) list_of_elements <<- list_of_elements[ord]
   })
 
+  # --- generate and download the Word report via R Markdown ---
   output$report <- shiny::downloadHandler(
-    # For PDF output, change this to "report.pdf"
-    filename = "report.doc",
+    filename = function() sprintf("report_%s.docx", Sys.Date()),
+    contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     content = function(file) {
-      # Copy the report file to a temporary directory before processing it, in
-      # case we don't have write permissions to the current working dir (which
-      # can happen when deployed).
       tempReport <- file.path(tempdir(), "report.Rmd")
       file.copy("report.Rmd", tempReport, overwrite = TRUE)
-      file.copy("HFdiagnosis.bib", file.path(tempdir(), "HFdiagnosis.bib"), overwrite = TRUE)
+      if (file.exists("HFdiagnosis.bib")) {
+        file.copy("HFdiagnosis.bib", file.path(tempdir(), "HFdiagnosis.bib"), overwrite = TRUE)
+      }
 
-      # Set up parameters to pass to Rmd document
-      params <- list(title = report_ui_vars$title(),
-                     author = report_ui_vars$author(),
-                     affiliation = report_ui_vars$aff(),
-                     section = tracker$section,
-                     ord = names(list_of_elements))
+      params <- list(
+        title       = report_ui_vars$title(),
+        author      = report_ui_vars$author(),
+        affiliation = report_ui_vars$aff(),
+        section     = tracker$section,
+        ord         = names(list_of_elements)
+      )
 
-      # Knit the document, passing in the `params` list, and eval it in a
-      # child of the global environment (this isolates the code in the document
-      # from the code in this app).
-      shiny::withProgress(message = 'Download in progress',
-                          detail = 'This may take a while...', value = 0, {
-                            rmarkdown::render(tempReport, output_file = file,
-                                              params = params,
-                                              envir = new.env(parent = globalenv())
+      shiny::withProgress(message = "Download in progress",
+                          detail = "This may take a while...", value = 0, {
+                            rmarkdown::render(
+                              input         = tempReport,
+                              output_file   = file,                      # Shiny's temp path for the docx
+                              output_format = rmarkdown::word_document(),# or rely on YAML in the Rmd
+                              params        = params,
+                              envir         = new.env(parent = globalenv()),
+                              quiet         = TRUE
                             )
                           })
     }
   )
 
-  # A temp file to save the output.
-  # This file will be removed later by renderImage
-  # outfile <- tempfile(fileext = '.png')
 
+  # --- preview the selected image (works if selection includes .png or not) ---
   output$myImage <- shiny::renderImage({
     sel <- report_ui_vars$figs()
     req(sel, sel != "None")
+    fname <- if (grepl("(?i)\\.png$", sel)) sel else paste0(sel, ".png")
     list(
-      src = file.path(tempdir(), paste0(sel, ".png")),
+      src = file.path(tempdir(), fname),
       contentType = "image/png",
       width = 400, height = 300
     )
   }, deleteFile = FALSE)
 }
+
+# handy infix for defaulting NULL
+`%||%` <- function(x, y) if (is.null(x)) y else x

@@ -1,8 +1,6 @@
 
 <p align="center">
-
 <img src="https://github.com/singha53/omicsBioAnalytics/blob/master/inst/extdata/figures/logo.png" width={400} alt="Omics BioAnalytics" />
-
 </p>
 
 **Omics BioAnalytics** is a Shiny app that perform common bioinformatics
@@ -12,23 +10,27 @@ biomarker discovery analysis. The can either use the provided sample
 data to run through the various analyses of the app or upload their own
 data (demographics variables, omics data).
 
-## Installing
+## Installation instructions for OmicsBioAnalytics web-application
 
-  - assuming R is installed.
+- assuming R is installed.
 
-<!-- end list -->
+### install R-package
 
 ``` r
-install.packages("devtools")
-devtools::install_github("singha53/omicsBioAnalytics")
+install.packages("pak")   # if not installed
+pak::pak("singha53/omicsBioAnalytics")
 ```
 
-## Get started
+### run the Shiny webapp
 
-  - Step 1) add inst/app/makeEnvVars.R with the following contents
-    (.Renvion worked locally but not on shinyapps.io):
+``` r
+omicsBioAnalytics::start_app()
+```
 
-<!-- end list -->
+## Voice-enabled analytics (OPTIONAL)
+
+- Step 1) add inst/app/makeEnvVars.R with the following contents
+  (.Renvion worked locally but not on shinyapps.io):
 
 ``` r
 saveRDS("your-s3-bucket-name", "S3BUCKET.rds")
@@ -41,26 +43,24 @@ saveRDS("your-dynamodb-table-name", "TABLE_NAME.rds")
 > The above script is sourced in global.R and the env are set locally
 > and on shinyapps.io at runtime.
 
-  - Step 2) run the Shiny webapp
-
-<!-- end list -->
+- Step 2) update alexa flag
+- see line 49 in global.R
 
 ``` r
-library(omicsBioAnalytics);
-omicsBioAnalytics::startApp()
+alexa_skill_exists <- TRUE # change from FALSE
 ```
 
 ## Programming/Scripting Languages
 
 ### Web-app
 
-  - RShiny (v3.6.1)
-  - RStudio (v1.2.5019)
+- RShiny (v3.6.1)
+- RStudio (v1.2.5019)
 
 ### Multi-model app
 
-  - [Omics BioAnalytics Alexa
-    Skill](https://github.com/singha53/omics-bioanalytics-alexa-skill)
+- [Omics BioAnalytics Alexa
+  Skill](https://github.com/singha53/omics-bioanalytics-alexa-skill)
 
 ## Sample datasets used for this app
 
@@ -108,16 +108,24 @@ database](https://github.com/singha53/omicsBioAnalytics/blob/master/inst/extdata
 
 ## Features
 
-  - analyze multiple omics data obtained on the same set of subjects
-    (samples/observations)
-  - interactive visualizations (heatmaps, networks, statistical graphs)
-  - RShiny app as an R-package
-  - voice-enabled analytics using an Alexa Skill
+- analyze multiple omics data obtained on the same set of subjects
+  (samples/observations)
+- interactive visualizations (heatmaps, networks, statistical graphs)
+- RShiny app as an R-package
+- voice-enabled analytics using an Alexa Skill
 
-## Room for improvements
+## Testing
 
-  - use of Shiny modules to improve server-side code
-  - use of R6Class to improve code
+``` r
+shinytest2::record_test("inst/app")
+
+devtools::load_all(".")
+testthat::test_dir("tests/testthat")
+devtools::test()
+
+## compare snapshots
+testthat::snapshot_review('shinytest2/')
+```
 
 ## Contributing
 
@@ -130,17 +138,17 @@ sure to restart your R session, then install the package from Github.
 
 ## Links
 
-  - Repository: <https://github.com/singha53/omicsBioAnalytics/>
+- Repository: <https://github.com/singha53/omicsBioAnalytics/>
 
 ## References
 
-  - [Shiny dashboard best
-    practices](https://www.inwt-statistics.com/read-blog/best-practice-development-of-robust-shiny-dashboards-as-r-packages.html)
-  - [Cloudyr dynamodb orphaned
-    R-library](https://github.com/cloudyr/aws.dynamodb)
+- [Shiny dashboard best
+  practices](https://www.inwt-statistics.com/read-blog/best-practice-development-of-robust-shiny-dashboards-as-r-packages.html)
+- [Cloudyr dynamodb orphaned
+  R-library](https://github.com/cloudyr/aws.dynamodb)
 
 ## Copyright and license
 
-Copyright 2020 AMRITPAL SINGH Inc.
+Copyright 2025 AMRITPAL SINGH Inc.
 
 The code in this project is licensed under MIT license.

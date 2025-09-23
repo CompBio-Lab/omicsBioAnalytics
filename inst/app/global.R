@@ -1,5 +1,13 @@
 options(repos=structure(BiocManager::repositories())) ## repository configuration of bioconductor packages
 
+# app.R or global.R — run once per R process
+local({
+  td <- tempdir()
+  junk <- list.files(td, all.files = TRUE, full.names = TRUE, no.. = TRUE)
+  if (length(junk)) unlink(junk, recursive = TRUE, force = TRUE)
+})
+
+
 # load libraries
 suppressPackageStartupMessages(library("shiny"));
 suppressPackageStartupMessages(library("shinydashboard"));
