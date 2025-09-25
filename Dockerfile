@@ -1,56 +1,25 @@
-# FROM rocker/shiny-verse:latest
+FROM rocker/r-ver:4.4.1
 
-# # Download and install libraries
-# RUN R -e "install.packages('remotes')"
-# RUN R -e "remotes::install_github('daqana/dqshiny')"
-# RUN Rscript -e "install.packages('BiocManager')"
-# RUN Rscript -e "BiocManager::install('limma')"
-# RUN R -e "devtools::install_github('singha53/omicsBioAnalytics@master')"
+# System libs
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git make g++ gfortran \
+    libopenblas-dev liblapack-dev \
+    libcurl4-openssl-dev libssl-dev libxml2-dev \
+    libfontconfig1-dev libfreetype6-dev libpng-dev libjpeg-dev libtiff5-dev libxt-dev \
+    libharfbuzz-dev libfribidi-dev \
+    pandoc && rm -rf /var/lib/apt/lists/*
 
-# # copy app to image
-# COPY inst/app /app
+# pak + BiocManager
+RUN Rscript -e "install.packages(c('pak','BiocManager'), repos='https://cran.r-project.org')"
 
-# EXPOSE 3838
+# Make pak use CRAN + Bioconductor (needed for limma, etc.)
+RUN Rscript -e "options(repos = BiocManager::repositories()); pak::repo_add(CRAN='https://cran.r-project.org')"
 
-# CMD ["R", "-e", "options(shiny.port = 3838, shiny.host = '0.0.0.0'); shiny::runApp('/app')"]
+# (optional) Pre-install heavy CRAN deps — NOTE: no version ranges here
+RUN Rscript -e "pak::pak(c('caret','data.table','ggplot2','purrr','shiny'))"
 
-FROM rocker/shiny:3.6.3
+# Install your package from GitHub (and remaining deps incl. Remotes)
+RUN Rscript -e "pak::pak('CompBio-Lab/omicsBioAnalytics')"
 
-RUN apt-get update -qq && apt-get -y --no-install-recommends install \
-  libxml2-dev \
-  libcairo2-dev \
-  libsqlite3-dev \
-  libmariadbd-dev \
-  libmariadbclient-dev \
-  libpq-dev \
-  libssl-dev \
-  libcurl4-openssl-dev \
-  libssh2-1-dev \
-  unixodbc-dev \
-  && rm -rf /tmp/downloaded_packages
-
-# install R packages required
-# (change it dependeing on the packages you need)
-RUN R -e "install.packages('remotes')"
-RUN R -e "install.packages('devtools')"
-RUN R -e "remotes::install_github('daqana/dqshiny')"
-RUN Rscript -e "install.packages(c('BiocManager', 'aws.s3', 'canvasXpress', 'caret', 'dplyr', 'DT', 'ellipse', 'enrichR', 'ggrepel', 'glmnet', 'googleVis', 'gridExtra', 'gvlma', 'jsonlite', 'lattice', 'magrittr', 'pheatmap', 'plotly', 'pROC','RColorBrewer', 'sortable', 'shinyjs', 'shinydashboard', 'shinyBS', 'tidyr', 'UpSetR', 'visNetwork'))"
-RUN Rscript -e "install.packages('BiocManager')"
-RUN Rscript -e "BiocManager::install('limma')"
-RUN R -e "remotes::install_github('singha53/omicsBioAnalytics@udacity')"
-
-# copy the app to the image
-COPY omicsBioAnalytics.Rproj /srv/shiny-server/
-COPY inst/app/ /srv/shiny-server/
-COPY R /srv/shiny-server/R
-COPY data /srv/shiny-server/data
-
-# select port
 EXPOSE 3838
-
-# allow permission
-RUN sudo chown -R shiny:shiny /srv/shiny-server
-
-# run app
-CMD ["/usr/bin/shiny-server.sh"]
-
+CMD ["R", "-e", "shiny::runApp(system.file('app', package='omicsBioAnalytics'), host='0.0.0.0', port=3838, launch.browser=FALSE)"]
