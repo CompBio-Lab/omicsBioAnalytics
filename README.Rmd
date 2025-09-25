@@ -37,7 +37,7 @@ omicsBioAnalytics::start_app()
 ### build docker image
 
 ```{bash}
-docker build -t omicsbioanalytics .
+docker build -t omicsbioanalytics . --no-cache
 ```
 
 ### run container
