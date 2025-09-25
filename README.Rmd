@@ -19,16 +19,6 @@ knitr::opts_chunk$set(echo = TRUE, cache = FALSE,
 
 ### install R-package
 
-```{bash}
-docker build -t omicsbioanalytics .
-```
-
-```{bash}
-docker run -p 3838:3838 -t omicsbioanalytics
-```
-
-
-
 ```{r}
 install.packages("pak")   # if not installed
 pak::pak("CompBio-Lab/omicsBioAnalytics")
@@ -38,6 +28,18 @@ pak::pak("CompBio-Lab/omicsBioAnalytics")
 
 ```{r}
 omicsBioAnalytics::start_app()
+```
+
+### Docker solution
+- docker should be installed
+- docker deamon should be running
+
+```{bash}
+docker build -t omicsbioanalytics .
+```
+
+```{bash}
+docker run -p 3838:3838 -t omicsbioanalytics
 ```
 
 ## Voice-enabled analytics (OPTIONAL)
