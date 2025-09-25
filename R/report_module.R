@@ -40,10 +40,7 @@ report_ui <- function(id) {
         shiny::actionButton(ns("h1Btn"), "Insert section",
                             color = "primary", style = "height: 20%"),
         shiny::uiOutput(ns("dragAndDrop")),
-        shiny::hr(),
-        shiny::h4("Files in tempdir()"),
-        shiny::actionButton(ns("refresh_tempdir"), "Refresh"),
-        DT::dataTableOutput(ns("tempdir_list"))
+        shiny::hr()
       )
     )
   )
@@ -103,28 +100,6 @@ report_server <- function(input, output, session, report_ui_vars) {
     list.files(tempdir(), pattern = "(?i)\\.png$", full.names = FALSE)
   }
 
-  # --- helper: build a tidy table of files in tempdir() ---
-  build_tempdir_df <- function() {
-    files <- list.files(tempdir(), full.names = TRUE)
-    if (!length(files)) {
-      return(data.frame(
-        File = character(), Size_KB = numeric(),
-        Modified = as.POSIXct(character()), Path = character(),
-        stringsAsFactors = FALSE
-      ))
-    }
-    info <- file.info(files)
-    out <- data.frame(
-      File     = basename(files),
-      Size_KB  = round(info$size / 1024, 1),
-      Modified = info$mtime,
-      Path     = files,
-      stringsAsFactors = FALSE,
-      row.names = NULL,
-      check.names = FALSE
-    )
-    out[order(out$Modified, decreasing = TRUE), ]
-  }
 
   # --- auto refresh timer (every 3s) ---
   rt <- shiny::reactiveTimer(3000, session)
@@ -137,20 +112,10 @@ report_server <- function(input, output, session, report_ui_vars) {
   shiny::observe({
     rt()  # tick
 
-    # 1) Update the tempdir() table
-    df <- build_tempdir_df()
-    output$tempdir_list <- DT::renderDataTable(
-      df,
-      options = list(pageLength = 10, order = list(list(2, "desc"))),
-      rownames = FALSE
-    )
-
-    # 2) Update Figures select with actual .png filenames
     pngs <- list_pngs()
     choices <- c("None", pngs)
     cur <- isolate(input$figs)
     sel <- if (is.null(cur) || !(cur %in% choices)) "None" else cur
-    print(sel)
     shiny::updateSelectInput(
       session,
       inputId = "figs",
