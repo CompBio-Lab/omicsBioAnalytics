@@ -18,13 +18,26 @@ data (demographics variables, omics data).
 
 ``` r
 install.packages("pak")   # if not installed
-pak::pak("singha53/omicsBioAnalytics")
+pak::pak("CompBio-Lab/omicsBioAnalytics")
 ```
 
 ### run the Shiny webapp
 
 ``` r
 omicsBioAnalytics::start_app()
+```
+
+### Docker solution
+
+- docker should be installed
+- docker deamon should be running
+
+``` bash
+docker build -t omicsbioanalytics .
+```
+
+``` bash
+docker run -p 3838:3838 -t omicsbioanalytics
 ```
 
 ## Voice-enabled analytics (OPTIONAL)
