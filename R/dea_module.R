@@ -44,7 +44,7 @@ dea_ui <- function(id, datasetName, dataset, response) {
     content = "OLS: Ordinary Least Squares, LIMMA: OLS with eBayes variance correction factor",
     placement = "right",
     trigger   = "click"
-  ),
+  )),
       shiny::column(6, shiny::verbatimTextOutput(ns("selection")), style = 'padding: 15px 10px 0px 10px;'),
       shiny::column(6, align = "center",
         shiny::sliderInput(ns("fdr"), shiny::h3("Select FDR threshold", align = "center"),
