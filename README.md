@@ -27,14 +27,18 @@ pak::pak("CompBio-Lab/omicsBioAnalytics")
 omicsBioAnalytics::start_app()
 ```
 
-### Docker solution
+## Docker solution
 
 - docker should be installed
 - docker deamon should be running
 
+### build docker image
+
 ``` bash
 docker build -t omicsbioanalytics .
 ```
+
+### run container
 
 ``` bash
 docker run -p 3838:3838 -t omicsbioanalytics
