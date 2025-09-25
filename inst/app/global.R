@@ -11,7 +11,6 @@ local({
 # load libraries
 suppressPackageStartupMessages(library("shiny"));
 suppressPackageStartupMessages(library("shinydashboard"));
-suppressPackageStartupMessages(library("shinyBS"));
 suppressPackageStartupMessages(library("dqshiny"));
 suppressPackageStartupMessages(library("plotly"));
 suppressPackageStartupMessages(library("omicsBioAnalytics")); # devtools::install_github("singha53/omicsBioAnalytics", force = TRUE)

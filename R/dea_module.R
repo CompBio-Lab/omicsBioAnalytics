@@ -29,14 +29,22 @@ dea_ui <- function(id, datasetName, dataset, response) {
           c("OLS" = "ols", "LIMMA" = "limma", "LIMMA voom" = "vlimma"),
           "limma",
           inline = TRUE)),
-      shiny::column(2,
-        shiny::br(),
-        shinyBS::bsButton(ns("search_button"), label = "", icon = shiny::icon("question"), style = "color:gray", size = "extra-small"),
-        shinyBS::bsPopover(id = ns("search_button"), title = "Tests",
-          content = "OLS: Ordinary Least Squares, LIMMA: OLS with eBayes variance correction factor",
-          placement = "right",
-          trigger = "click",  options = NULL)
-      ),
+      shiny::column(
+  2,
+  shiny::br(),
+  bslib::popover(
+    shiny::actionButton(
+      ns("search_button"),
+      label = "",
+      icon = shiny::icon("question"),
+      class = "btn btn-link",   # link-style button
+      style = "color:gray; padding-left:6px;"
+    ),
+    title   = "Tests",
+    content = "OLS: Ordinary Least Squares, LIMMA: OLS with eBayes variance correction factor",
+    placement = "right",
+    trigger   = "click"
+  ),
       shiny::column(6, shiny::verbatimTextOutput(ns("selection")), style = 'padding: 15px 10px 0px 10px;'),
       shiny::column(6, align = "center",
         shiny::sliderInput(ns("fdr"), shiny::h3("Select FDR threshold", align = "center"),
