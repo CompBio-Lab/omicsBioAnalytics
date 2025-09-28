@@ -31,12 +31,15 @@ omicsBioAnalytics::start_app()
 ```
 
 ## Docker solution
+- either have git installed or download the [repo](https://github.com/CompBio-Lab/omicsBioAnalytics) 
 - docker should be installed
 - docker deamon should be running
 
 ### build docker image
 
 ```{bash}
+git clone https://github.com/CompBio-Lab/omicsBioAnalytics.git
+cd omicsBioAnalytics
 docker build -t omicsbioanalytics . --no-cache
 ```
 
