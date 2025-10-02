@@ -3,12 +3,12 @@
 <img src="https://github.com/singha53/omicsBioAnalytics/blob/master/inst/extdata/figures/logo.png" width={400} alt="Omics BioAnalytics" />
 </p>
 
-**Omics BioAnalytics** is a Shiny app that perform common bioinformatics
-analyses such as descriptive analyses of demographics variables,
-exploratory data analysis, differential expression analysis and
-biomarker discovery analysis. The can either use the provided sample
-data to run through the various analyses of the app or upload their own
-data (demographics variables, omics data).
+**Omics BioAnalytics** is a Shiny app that performs common
+bioinformatics analyses such as descriptive analyses of demographics
+variables, exploratory data analysis, differential expression analysis
+and biomarker discovery analysis. The user can either use the provided
+sample data to run through the various analyses of the app or upload
+their own data (demographics variables, omics data).
 
 ## Installation instructions for OmicsBioAnalytics web-application
 
@@ -29,12 +29,16 @@ omicsBioAnalytics::start_app()
 
 ## Docker solution
 
+- either have git installed or download the
+  [repo](https://github.com/CompBio-Lab/omicsBioAnalytics)
 - docker should be installed
 - docker deamon should be running
 
 ### build docker image
 
 ``` bash
+git clone https://github.com/CompBio-Lab/omicsBioAnalytics.git
+cd omicsBioAnalytics
 docker build -t omicsbioanalytics . --no-cache
 ```
 
