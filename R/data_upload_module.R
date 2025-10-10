@@ -1,3 +1,5 @@
+# My test change to (here) line 38 message
+
 #' UI of Data Upload page
 #'
 #' @param id, character used to specify namespace,
@@ -33,7 +35,7 @@ data_upload_ui <- function(id) {
       shiny::column(6,
                     shiny::fileInput(
                       ns("omics_data"),
-                      label   = "Omics data (upload one or more files)",
+                      label   = "Omics data (upload one or more files) ;P ",
                       multiple = TRUE,
                       accept   = c(".csv", ".tsv", ".txt")
                     )
