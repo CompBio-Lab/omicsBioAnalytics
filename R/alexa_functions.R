@@ -1,5 +1,3 @@
-# This line is just a test-change for me to see if git stuff works
-
 #' @export
 #' @rdname alexaMetadata
 alexa_metadata <- function(demo, group, trim, format, user_id, s3_bucket) {
