@@ -38,9 +38,9 @@ server <- function(input, output, session) {
 
   # Run analysis
   observeEvent(data_upload_ui_vars$run(), {
-    tryCatch({
       withProgress(message = 'Running analysis...',
                    detail = 'This may take some time...', value = 0, {
+                     tryCatch({
         ################################################################################
         #
         # Metadata Analysis
