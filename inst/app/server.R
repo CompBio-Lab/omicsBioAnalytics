@@ -1,3 +1,18 @@
+# Error catching adjustment using tryCatch wrap to stop app gray-ing and collapsing
+#
+# Changed:
+# observeEvent(data_upload_ui_vars$run(), {
+# ...
+# }
+# to:
+# observeEvent(data_upload_ui_vars$run(), {
+# tryCatch({
+# ...
+# error = function(e) {
+#  showNotification("An error occurred — please check your inputs and try again.", type = "error")
+#  NULL
+# })
+
 
 server <- function(input, output, session) {
   ns <- session$ns
@@ -23,9 +38,9 @@ server <- function(input, output, session) {
 
   # Run analysis
   observeEvent(data_upload_ui_vars$run(), {
-
-    withProgress(message = 'Running analysis...',
-      detail = 'This may take some time...', value = 0, {
+    tryCatch({
+      withProgress(message = 'Running analysis...',
+                   detail = 'This may take some time...', value = 0, {
         ################################################################################
         #
         # Metadata Analysis
@@ -138,6 +153,11 @@ server <- function(input, output, session) {
     })
 
     analysisRan(TRUE)
+    },
+    error = function(e) {
+      showNotification("An error occurred — please check your inputs and try again.", type = "error")
+      NULL
+    })
   })
 
   ################################################################################
