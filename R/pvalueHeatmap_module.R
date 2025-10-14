@@ -18,8 +18,8 @@ pvalue_heatmap_ui <- function(id) {
 #' @param demo data frame with metadata
 #' @param pcs data frame containing principal components
 #' @export
-pvalue_heatmap_server <- function(input, output, session, demo, pcs) {
+pvalue_heatmap_server <- function(input, output, session, demo, pcs, pval) {
   output$pca_clinvar <- plotly::renderPlotly({
-    ggplotly(pcaHeatmap(pcs = pcs, demo = demo))
+    ggplotly(pcaHeatmap(pcs = pcs, demo = demo, pval = pval))
   })
 }
