@@ -25,7 +25,7 @@ eda_ui <- function(id) {
       max = 5,
       value = 1
     ),
-      shiny::h3("PCA component plots", align = "center")
+      shiny::h3("Score plots", align = "center")
   ), shiny::column(8,
     shiny::h3("Percentage variation explained", align = "center"),
     shiny::verbatimTextOutput(ns("var_exp"))
@@ -36,8 +36,7 @@ eda_ui <- function(id) {
     ),
     shiny::column(8,
                   shiny::h3(
-                    "Which metadata variables are associated with major
-      sources of variation in the expression data?",
+                    "Association between metadata and PC scores",
                     align = "center"
                   ),
 
