@@ -29,22 +29,44 @@ dea_ui <- function(id, datasetName, dataset, response) {
           c("OLS" = "ols", "LIMMA" = "limma", "LIMMA voom" = "vlimma"),
           "limma",
           inline = TRUE)),
-      shiny::column(
-  2,
-  shiny::br(),
-  bslib::popover(
-    shiny::actionButton(
-      ns("search_button"),
-      label = "",
-      icon = shiny::icon("question"),
-      class = "btn btn-link",   # link-style button
-      style = "color:gray; padding-left:6px;"
+    #   shiny::column(
+    #     2,
+    #     shiny::br(),
+    #
+    #     # tiny CSS so "?" looks like an icon (no FA/bsicons)
+    #     shiny::tags$style(
+    #       HTML(sprintf("
+    #   #%s {
+    #     display:inline-block; width:22px; height:22px; line-height:22px;
+    #     text-align:center; border-radius:50%%; border:1px solid #bbb;
+    #     color:#666; cursor:pointer; user-select:none;
+    #   }
+    #   #%s:hover { background:#f7f7f7; color:#333; }
+    # ", ns("qhelp"), ns("qhelp")))
+    #     ),
+    #
+    #     bslib::popover(
+    #       # target element (must be a real tag)
+    #       shiny::tags$span(id = ns("qhelp"), "?", tabindex = "0"),
+    #
+    #       # popover body as UNNAMED positional arg (works across old bslib versions)
+    #       shiny::div(
+    #         "OLS: Ordinary Least Squares;",
+    #         shiny::tags$br(),
+    #         "LIMMA: OLS with eBayes variance correction factor."
+    #       ),
+    #
+    #       title     = "Tests",
+    #       placement = "right",
+    #       options   = list(trigger = "click")   # keep here to avoid the literal 'click'
+    #     )
+    #   ),
+    shiny::column(2,
+                  shiny::actionButton(
+                    ns("qhelp"), label = "", icon = shiny::icon("question"),
+                    class = "btn btn-link", style = "color:gray; padding-left:6px;"
+                  )
     ),
-    title   = "Tests",
-    content = "OLS: Ordinary Least Squares, LIMMA: OLS with eBayes variance correction factor",
-    placement = "right",
-    trigger   = "click"
-  )),
       shiny::column(6, shiny::verbatimTextOutput(ns("selection")), style = 'padding: 15px 10px 0px 10px;'),
       shiny::column(6, align = "center",
         shiny::sliderInput(ns("fdr"), shiny::h3("Select FDR threshold", align = "center"),
@@ -93,7 +115,11 @@ dea_ui <- function(id, datasetName, dataset, response) {
         shiny::column(12,
           # sliderInput(paste("enrichmentSlider", i, sep="_"), "Select number of pathways:", min=0, max=10, value=5, step=2),
           # plotly::plotlyOutput(paste("pathwayEnrichment", i, sep="_")),
-          shiny::plotOutput(ns("pathwayEnrichment"), click = shiny::hoverOpts(id = ns("pathwayEnrichment_plot_click"))),
+          shiny::plotOutput(ns("pathwayEnrichment"),
+                            hover = shiny::hoverOpts(id = ns("pathwayEnrichment_hover"),
+                                                     delay = 100,
+                                                     delayType = "debounce",
+                                                     clip = TRUE)),
           shiny::verbatimTextOutput(ns("pathwayEnrichment_info")),
           shiny::downloadButton(ns("edgesGsetAll"), label = shiny::HTML("<span style='font-size:1em;'>Download<br/>Enriched Pathways</span>")))),
       shiny::fluidRow(align = 'center',
@@ -160,7 +186,7 @@ dea_ui_vars <- function(input, output, session) {
       pathwayEnrichmentOps_xSize = shiny::reactive({input$pathwayEnrichmentOps_xSize}),
       pathwayEnrichmentOps_ySize = shiny::reactive({input$pathwayEnrichmentOps_ySize}),
       pathwayEnrichment = shiny::reactive({input$pathwayEnrichment}),
-      pathwayEnrichment_plot_click = shiny::reactive({input$pathwayEnrichment_plot_click}),
+      pathwayEnrichment_hover = shiny::reactive({input$pathwayEnrichment_hover}),
       drugEnrichmentUpSlider = shiny::reactive({input$drugEnrichmentUpSlider}),
       drugEnrichmentDownSlider = shiny::reactive({input$drugEnrichmentDownSlider})
     )
@@ -206,6 +232,13 @@ dea_server <- function(input, output, session, datasetName, dataset, response,
     plotOps$xSize  <- input$dePlotOps_xSize
     plotOps$ySize  <- input$dePlotOps_ySize
     removeModal()
+  })
+  observeEvent(input$qhelp, {
+    showModal(modalDialog(
+      title = "Tests",
+      "OLS: Ordinary Least Squares. \n LIMMA: OLS with eBayes variance correction factor.",
+      easyClose = TRUE, footer = modalButton("Close")
+    ))
   })
   observeEvent(input$plot_help, {
     showModal(modalDialog(
@@ -382,6 +415,7 @@ dea_server <- function(input, output, session, datasetName, dataset, response,
 
         ## Differential pathway analysis
         if (datasetName %in% perform_pathway_analysis) {
+          bg_genes <- dplyr::pull(subsetTop(), FeatureName)
           pathwaydbs <- c("Jensen_DISEASES", "KEGG_2019_Human", "WikiPathways_2019_Human")
           sigTable <- dplyr::filter(subsetTop(), Significant != "Not Sig")
           up <- sigTable$logFC[sigTable$logFC > 0 ]
@@ -392,22 +426,80 @@ dea_server <- function(input, output, session, datasetName, dataset, response,
           # dbs <- listEnrichrDbs()
 
           # Run Pathway Analysis using EnrichR
-          if(length(all) > 1){
-            # enrichment analysis for all genes/proteins
-            enrichedAll <- enrichr(names(all), pathwaydbs)
-            edgesGsetAll <- do.call(rbind, enrichedAll) %>%
-              dplyr::mutate(database = rep(names(enrichedAll), sapply(enrichedAll, nrow))) %>%
-              dplyr::filter(Adjusted.P.value < dea_ui_vars$fdr())
-            edgesGsetAll$int <- as.numeric(sapply(strsplit(as.character(edgesGsetAll$Overlap), "/"), function(i) i[1]))
+          # if(length(all) > 1){
+          #   # enrichment analysis for all genes/proteins
+          #   enrichedAll <- enrichr(genes = names(all), databases = pathwaydbs, background = bg_genes)
+          #   edgesGsetAll <- do.call(rbind, enrichedAll) %>%
+          #     dplyr::mutate(database = rep(names(enrichedAll), sapply(enrichedAll, nrow))) %>%
+          #     dplyr::filter(Adjusted.P.value < dea_ui_vars$fdr())
+          #   edgesGsetAll$int <- as.numeric(sapply(strsplit(as.character(edgesGsetAll$Overlap), "/"), function(i) i[1]))
+          #
+          #   edgesGsetAll_list <- strsplit(edgesGsetAll$Genes, ";")
+          #   names(edgesGsetAll_list) <- edgesGsetAll$Term
+          #
+          #   updateSliderInput(session, "enrichmentSlider", min = 1, max = length(edgesGsetAll_list), value = min(5, round(length(edgesGsetAll_list)/2, 0)))
+          #
+          # } else {
+          #   edgesGsetAll <- data.frame(msg = "No pathways were identified")
+          # }
 
-            edgesGsetAll_list <- strsplit(edgesGsetAll$Genes, ";")
+          if (length(all) > 1) {
+            # Run enrichment
+            enrichedAll <- enrichr(
+              genes = names(all),
+              databases = pathwaydbs,
+              background = bg_genes
+            )
+
+            # Combine results; keep database names even if some are empty
+            edgesGsetAll <- dplyr::bind_rows(
+              purrr::imap(enrichedAll, ~ dplyr::mutate(.x, database = .y))
+            )
+
+            # If no rows came back at all, bail early
+            if (is.null(edgesGsetAll) || nrow(edgesGsetAll) == 0) {
+              edgesGsetAll <- data.frame(msg = "No pathways were identified")
+              updateSliderInput(session, "enrichmentSlider", min = 0, max = 0, value = 0)
+              return(NULL)
+            }
+
+            # Filter by FDR safely; handle the case where nothing passes
+            edgesGsetAll <- dplyr::filter(edgesGsetAll, Adjusted.P.value < dea_ui_vars$fdr())
+
+            if (nrow(edgesGsetAll) == 0) {
+              edgesGsetAll <- data.frame(msg = "No pathways were identified at this FDR")
+              updateSliderInput(session, "enrichmentSlider", min = 0, max = 0, value = 0)
+              return(NULL)
+            }
+
+            # Parse overlap like "7/150" -> int = 7; be robust to NAs or weird strings
+            # edgesGsetAll$int <- purrr::map_dbl(
+            #   strsplit(as.character(edgesGsetAll$Overlap %||% ""), "/"),
+            #   ~ suppressWarnings(as.numeric(.x[1])) %||% NA_real_
+            # )
+            edgesGsetAll$int <- sapply(strsplit(edgesGsetAll$Genes, ";"), length)
+            head(edgesGsetAll)
+            head(edgesGsetAll$Overlap)
+            # edgesGsetAll$int <- as.numeric(sapply(strsplit(as.character(edgesGsetAll$Overlap), "/"), function(i) i[1]))
+
+            # Build the named gene-set list (may be used elsewhere in your app)
+            edgesGsetAll_list <- strsplit(edgesGsetAll$Genes %||% "", ";", fixed = TRUE)
             names(edgesGsetAll_list) <- edgesGsetAll$Term
 
-            updateSliderInput(session, "enrichmentSlider", min = 1, max = length(edgesGsetAll_list), value = min(5, round(length(edgesGsetAll_list)/2, 0)))
+            # Update slider based on how many gene sets we have
+            n_sets <- length(edgesGsetAll_list)
+            updateSliderInput(
+              session, "enrichmentSlider",
+              min = 1, max = n_sets, value = min(5, max(1, round(n_sets / 2)))
+            )
 
           } else {
-            edgesGsetAll <- data.frame(msg = "No pathways were identified")
+            edgesGsetAll <- data.frame(msg = "No pathways were identified (gene list too small).")
+            updateSliderInput(session, "enrichmentSlider", min = 0, max = 0, value = 0)
           }
+
+
+
           # plot heatmap of enriched pathway
           # output[[paste("pathwayEnrichment", i, sep="_")]] <- renderPlotly({
           #   if(nrow(edgesGsetAll) > 1 & i %in% performPathwayAnalysis()){
@@ -424,12 +516,13 @@ dea_server <- function(input, output, session, datasetName, dataset, response,
           output$pathwayEnrichment <- renderPlot({
             if(nrow(edgesGsetAll) > 1 & datasetName %in% perform_pathway_analysis){
               options(htmlwidgets.TOJSON_ARGS = NULL) ## import in order to run canvasXpress
+              print(head(edgesGsetAll))
               edgesGsetAll[1:dea_ui_vars$enrichmentSlider(), ] %>%
                 mutate(Term = factor(as.character(Term), as.character(Term))) %>%
                 ggplot(aes(x = Term, y = int, color = Term)) + geom_point(size = 5) +
                 geom_segment(aes(xend = Term, color = Term), yend = 0, size = 1) +
                 scale_y_log10() +
-                ylab("Overlap") +
+                ylab("Number of genes") +
                 theme_classic() +
                 theme(legend.position = "none") +
                 scale_fill_manual(values = group_colors[1:length(unique(response))]) +
@@ -442,42 +535,163 @@ dea_server <- function(input, output, session, datasetName, dataset, response,
               omicsBioAnalytics::empty_plot(paste0("No enriched pathways at an FDR = ", dea_ui_vars$fdr()))
             }
           })
+          # output$pathwayEnrichment_info <- renderPrint({
+          #   if(!is.null(dea_ui_vars$pathwayEnrichment_plot_click())){
+          #     hover=dea_ui_vars$pathwayEnrichment_plot_click()
+          #   }
+          # })
           output$pathwayEnrichment_info <- renderPrint({
-            if(!is.null(dea_ui_vars$pathwayEnrichment_plot_click())){
-              hover=dea_ui_vars$pathwayEnrichment_plot_click()
+            hov <- dea_ui_vars$pathwayEnrichment_hover()
+            if (is.null(hov)) return(invisible())
+            # Show raw hover coords
+            # print(hov)
+
+            # Optional: identify the nearest pathway using nearPoints()
+            # Works even with categorical x ("Term")
+            np <- shiny::nearPoints(
+              df = edgesGsetAll,
+              coordinfo = hov,
+              xvar = "Term",
+              yvar = "int",
+              threshold = 10,
+              maxpoints = 1,
+              addDist = TRUE
+            )
+            if (nrow(np)) {
+              cat(paste0("\n", np[, "Term"], ":\n"))
+              # print(np[, c("Term","int","Adjusted.P.value","database")])
+              print(np[, "Genes"])
             }
           })
 
+          # # Run EnrichR for drug enrichment analysis
+          # if(length(up) > 1){
+          #   # enrichment analysis for up-regulated genes/proteins
+          #   enrichedUp <- enrichr(genes = names(up), databases = "LINCS_L1000_Chem_Pert_down", background = bg_genes)
+          #   edgesPertUp <- do.call(rbind, enrichedUp) %>%
+          #     dplyr::mutate(database = rep(names(enrichedUp), sapply(enrichedUp, nrow))) %>%
+          #     dplyr::filter(Adjusted.P.value < dea_ui_vars$fdr())
+          #   edgesPertUp_list <- strsplit(edgesPertUp$Genes, ";")
+          #   names(edgesPertUp_list) <- edgesPertUp$Term
+          #
+          #   updateSliderInput(session, "drugEnrichmentUpSlider", min = 1, max = length(edgesPertUp_list), value = min(5, round(length(edgesPertUp_list)/2, 0)))
+          #
+          # } else {
+          #   edgesPertUp <- data.frame(msg = "No pathways were identified")
+          # }
+          # if(length(down) > 1){
+          #   # enrichment analysis for down-regulated genes/proteins
+          #   enrichedDown <- enrichr(genes = names(down), databases = "LINCS_L1000_Chem_Pert_up", background = bg_genes)
+          #   edgesPertDown <- do.call(rbind, enrichedDown) %>%
+          #     dplyr::mutate(database = rep(names(enrichedDown), sapply(enrichedDown, nrow))) %>%
+          #     dplyr::filter(Adjusted.P.value < dea_ui_vars$fdr())
+          #
+          #   edgesPertDown_list <- strsplit(edgesPertDown$Genes, ";")
+          #   names(edgesPertDown_list) <- edgesPertDown$Term
+          #
+          #   updateSliderInput(session, "drugEnrichmentDownSlider", min = 1, max = length(edgesPertDown_list), value = min(5, round(length(edgesPertDown_list)/2, 0)))
+          #
+          # } else {
+          #   edgesPertDown <- data.frame(msg = "No pathways were identified")
+          # }
+          # ---- DRUG ENRICHMENT: UP-REGULATED ----
+          if (length(up) > 1) {
+            enrichedUp <- enrichr(
+              genes      = names(up),
+              databases  = "LINCS_L1000_Chem_Pert_down",
+              background = bg_genes
+            )
 
-          # Run EnrichR for drug enrichment analysis
-          if(length(up) > 1){
-            # enrichment analysis for up-regulated genes/proteins
-            enrichedUp <- enrichr(names(up), "LINCS_L1000_Chem_Pert_down")
-            edgesPertUp <- do.call(rbind, enrichedUp) %>%
-              dplyr::mutate(database = rep(names(enrichedUp), sapply(enrichedUp, nrow))) %>%
-              dplyr::filter(Adjusted.P.value < dea_ui_vars$fdr())
-            edgesPertUp_list <- strsplit(edgesPertUp$Genes, ";")
-            names(edgesPertUp_list) <- edgesPertUp$Term
+            # Combine results and tag database, even if some pieces are empty
+            edgesPertUp <- tryCatch({
+              if (is.null(enrichedUp) || length(enrichedUp) == 0) {
+                data.frame()
+              } else {
+                do.call(rbind, Map(function(df, nm) {
+                  if (is.null(df) || nrow(df) == 0) return(df)
+                  df$database <- nm
+                  df
+                }, enrichedUp, names(enrichedUp)))
+              }
+            }, error = function(e) data.frame())
 
-            updateSliderInput(session, "drugEnrichmentUpSlider", min = 1, max = length(edgesPertUp_list), value = min(5, round(length(edgesPertUp_list)/2, 0)))
+            # If nothing returned at all
+            if (nrow(edgesPertUp) == 0) {
+              edgesPertUp <- data.frame(msg = "No pathways were identified")
+              edgesPertUp_list <- list()
+              updateSliderInput(session, "drugEnrichmentUpSlider", min = 0, max = 0, value = 0)
+            } else {
+              # FDR filter
+              edgesPertUp <- dplyr::filter(edgesPertUp, Adjusted.P.value < dea_ui_vars$fdr())
 
+              if (nrow(edgesPertUp) == 0) {
+                edgesPertUp <- data.frame(msg = "No pathways were identified at this FDR")
+                edgesPertUp_list <- list()
+                updateSliderInput(session, "drugEnrichmentUpSlider", min = 0, max = 0, value = 0)
+              } else {
+                # Build named list for downstream use
+                edgesPertUp_list <- strsplit(as.character(edgesPertUp$Genes), ";", fixed = TRUE)
+                names(edgesPertUp_list) <- edgesPertUp$Term
+
+                n_sets_up <- length(edgesPertUp_list)
+                updateSliderInput(
+                  session, "drugEnrichmentUpSlider",
+                  min = 1, max = n_sets_up, value = min(5, max(1, round(n_sets_up / 2)))
+                )
+              }
+            }
           } else {
-            edgesPertUp <- data.frame(msg = "No pathways were identified")
+            edgesPertUp <- data.frame(msg = "No pathways were identified (gene list too small).")
+            edgesPertUp_list <- list()
+            updateSliderInput(session, "drugEnrichmentUpSlider", min = 0, max = 0, value = 0)
           }
-          if(length(down) > 1){
-            # enrichment analysis for down-regulated genes/proteins
-            enrichedDown <- enrichr(names(down), "LINCS_L1000_Chem_Pert_up")
-            edgesPertDown <- do.call(rbind, enrichedDown) %>%
-              dplyr::mutate(database = rep(names(enrichedDown), sapply(enrichedDown, nrow))) %>%
-              dplyr::filter(Adjusted.P.value < dea_ui_vars$fdr())
 
-            edgesPertDown_list <- strsplit(edgesPertDown$Genes, ";")
-            names(edgesPertDown_list) <- edgesPertDown$Term
+          # ---- DRUG ENRICHMENT: DOWN-REGULATED ----
+          if (length(down) > 1) {
+            enrichedDown <- enrichr(
+              genes      = names(down),
+              databases  = "LINCS_L1000_Chem_Pert_up",
+              background = bg_genes
+            )
 
-            updateSliderInput(session, "drugEnrichmentDownSlider", min = 1, max = length(edgesPertDown_list), value = min(5, round(length(edgesPertDown_list)/2, 0)))
+            edgesPertDown <- tryCatch({
+              if (is.null(enrichedDown) || length(enrichedDown) == 0) {
+                data.frame()
+              } else {
+                do.call(rbind, Map(function(df, nm) {
+                  if (is.null(df) || nrow(df) == 0) return(df)
+                  df$database <- nm
+                  df
+                }, enrichedDown, names(enrichedDown)))
+              }
+            }, error = function(e) data.frame())
 
+            if (nrow(edgesPertDown) == 0) {
+              edgesPertDown <- data.frame(msg = "No pathways were identified")
+              edgesPertDown_list <- list()
+              updateSliderInput(session, "drugEnrichmentDownSlider", min = 0, max = 0, value = 0)
+            } else {
+              edgesPertDown <- dplyr::filter(edgesPertDown, Adjusted.P.value < dea_ui_vars$fdr())
+
+              if (nrow(edgesPertDown) == 0) {
+                edgesPertDown <- data.frame(msg = "No pathways were identified at this FDR")
+                edgesPertDown_list <- list()
+                updateSliderInput(session, "drugEnrichmentDownSlider", min = 0, max = 0, value = 0)
+              } else {
+                edgesPertDown_list <- strsplit(as.character(edgesPertDown$Genes), ";", fixed = TRUE)
+                names(edgesPertDown_list) <- edgesPertDown$Term
+
+                n_sets_down <- length(edgesPertDown_list)
+                updateSliderInput(
+                  session, "drugEnrichmentDownSlider",
+                  min = 1, max = n_sets_down, value = min(5, max(1, round(n_sets_down / 2)))
+                )
+              }
+            }
           } else {
-            edgesPertDown <- data.frame(msg = "No pathways were identified")
+            edgesPertDown <- data.frame(msg = "No pathways were identified (gene list too small).")
+            edgesPertDown_list <- list()
+            updateSliderInput(session, "drugEnrichmentDownSlider", min = 0, max = 0, value = 0)
           }
 
           # plot heatmaps for enriched drugs
@@ -532,7 +746,7 @@ dea_server <- function(input, output, session, datasetName, dataset, response,
                 dea_ui_vars$fdr(), "_", Sys.Date(), ".txt", sep="")
             },
             content = function(file) {
-              write.txt(edgesPertDown, file, row.names = FALSE, sep="\t")
+              write.table(edgesPertDown, file, row.names = FALSE, sep="\t")
             }
           )
 
