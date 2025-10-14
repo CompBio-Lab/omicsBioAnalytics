@@ -12,3 +12,6 @@ inst/app/TABLE_NAME.rds
 inst/app/.Rprofile
 inst/app/rsconnect/
 **.zip
+renv/
+!renv/activate.R
+!renv/settings.dcf
