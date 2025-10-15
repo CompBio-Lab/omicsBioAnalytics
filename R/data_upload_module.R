@@ -141,7 +141,7 @@ data_upload_server <- function(input, output, session,
 
   # Human-readable label for messages: ".csv" or ".tsv or .txt"
   allowed_ext_label <- shiny::reactive({
-    paste0(".", allowed_ext(), collapse = " or .")
+    paste0(".", allowed_ext(), collapse = " or ")
   })
 
   # Build extension mismatch messages (if any)
