@@ -115,12 +115,12 @@ biomarker_discovery_analysis_ui <- function(id, dataset_names, response, respons
                 shiny::tabPanel("Heatmaps",
                   shiny::fluidRow(shiny::column(6,
                     shiny::h3("Base classifier", align = "center"),
-                    canvasXpress::canvasXpressOutput(ns("heatmapBasePanel")),
+                    canvasXpress::canvasXpressOutput(ns("heatmapBasePanel"), height = "600px"),
                     shiny::radioButtons(ns("heatmapBasePanelRadioButtons"), "Select dataset", c(" "), inline = TRUE)
                   ),
                     shiny::column(6,
                       shiny::h3("Ensemble classifier", align = "center"),
-                      canvasXpress::canvasXpressOutput(ns("heatmapEnsemblePanel"))
+                      canvasXpress::canvasXpressOutput(ns("heatmapEnsemblePanel"), height = "700px")
                     ))),
                 shiny::tabPanel("Biological signficance of ensemble panel",
                   shiny::fluidRow(
@@ -758,7 +758,11 @@ biomarker_discovery_analysis_server <- function(input, output, session, datasets
           ## gene set enrichment analysis
           # dbs <- listEnrichrDbs()
           dbs <- c("Jensen_DISEASES", "KEGG_2019_Human", "WikiPathways_2019_Human")
-          enriched <- enrichr(unlist(ensemblePanel), dbs)
+          # enriched <- enrichr(unlist(ensemblePanel), dbs)
+          print(unique(unlist(lapply(datasets, colnames))))
+          print(sapply(datasets, names))
+          bg_genes <- unique(unlist(lapply(datasets, colnames)))
+          enriched <- enrichr(unlist(ensemblePanel), dbs, background = bg_genes)
 
           edgesGset <- do.call(rbind, enriched) %>%
             mutate(database = rep(names(enriched), sapply(enriched, nrow)))
