@@ -189,6 +189,66 @@ data_upload_server <- function(input, output, session,
     is_demo_ok && is_omics_ok
   })
 
+
+
+
+
+
+
+  ## ---- File content check --------------------------------------
+
+  # File header existence
+  header_error_msgs <- shiny::reactive({
+
+    if (is.null(data_upload_ui_vars$demo()) || is.null(data_upload_ui_vars$omics_data())) {
+      return(NULL)
+    } # header checks only run when demo and omics are uploaded +
+      # no interfering with warning messages that need to appear before uploads!
+
+    msgs <- character(0)
+
+    # Demo file
+
+    demo_file <- data_upload_ui_vars$demo()
+
+    demo_path <- demo_file$datapath
+    first_line <- readLines(demo_path, n = 1)
+    demo_header_ok <- all(grepl("[A-Za-z]", strsplit(first_line, ",")[[1]]))
+
+    # Omics files
+
+    omics_files <- data_upload_ui_vars$omics_data()
+
+    omics_paths <- omics_files$datapath
+    omics_header_ok <- sapply(omics_paths, function(f) {
+      first_line <- readLines(f, n = 1)
+      all(grepl("[A-Za-z]", strsplit(first_line, ",")[[1]]))
+    })
+
+    bad_headers <- which(!omics_header_ok)
+
+
+    # Error messages set up
+
+    if (!demo_header_ok)  {
+      msgs <- c(msgs, "The metadata file is missing a proper header.")
+    }
+    if (length(bad_headers)) {
+      msgs <- c(msgs, sprintf("These omics files are missing proper headers: %s",
+                paste(omics_files$name[bad_headers], collapse = ", ")))
+    }
+
+    if (length(msgs)) msgs else NULL # Adjusting error msgs vector in case header error detected
+  })
+
+
+
+
+
+
+
+
+
   ## ---- Error / validation UI ---------------------------------------------
 
   output$uploadErrorMsg <- shiny::renderUI({
@@ -207,6 +267,9 @@ data_upload_server <- function(input, output, session,
 
     # Extension mismatches
     if (!is.null(ext_error_msgs())) msgs <- c(msgs, ext_error_msgs())
+
+    # Header checks
+    if (!is.null(header_error_msgs())) msgs <- c(msgs, header_error_msgs())
 
     if (length(msgs)) {
       shiny::div(
