@@ -13,7 +13,7 @@ suppressPackageStartupMessages(library("shiny"));
 suppressPackageStartupMessages(library("shinydashboard"));
 suppressPackageStartupMessages(library("dqshiny"));
 suppressPackageStartupMessages(library("plotly"));
-suppressPackageStartupMessages(library("omicsBioAnalytics")); # devtools::install_github("singha53/omicsBioAnalytics", force = TRUE)
+suppressPackageStartupMessages(library("omicsBioAnalytics")); # renv::install("CompBio-Lab/omicsBioAnalytics")
 suppressPackageStartupMessages(library("googleVis"));
 suppressPackageStartupMessages(library("limma"));
 suppressPackageStartupMessages(library("lattice"));
