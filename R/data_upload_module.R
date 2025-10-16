@@ -285,7 +285,7 @@ data_upload_server <- function(input, output, session,
 
   # Demographics data upload
   get_demo_data <- shiny::reactive({
-    shiny::req(data_upload_ui_vars$demo(), files_ext_ok())
+    shiny::req(data_upload_ui_vars$demo(), files_ext_ok(), is.null(header_error_msgs()))
     read.table(
       data_upload_ui_vars$demo()$datapath,
       header = TRUE,
