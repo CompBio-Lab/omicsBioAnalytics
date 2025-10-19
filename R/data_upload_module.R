@@ -45,7 +45,8 @@ data_upload_ui <- function(id) {
           icon = shiny::icon("play"),
           style = "color: #fff; background-color:
           #337ab7; border-color: #2e6da4"),
-        shiny::uiOutput(ns("uploadErrorMsg"))
+        shiny::uiOutput(ns("uploadErrorMsg_preread")),
+        shiny::uiOutput(ns("uploadErrorMsg_postread"))
       ),
       shiny::column(6,
         shiny::h3("Or try these example datasets:", align = "left"),
@@ -195,7 +196,7 @@ data_upload_server <- function(input, output, session,
 
 
 
-  ## ---- File content check --------------------------------------
+  ## ---- File content check - headers --------------------------------------
 
   # File header existence
   header_error_msgs <- shiny::reactive({
@@ -210,48 +211,45 @@ data_upload_server <- function(input, output, session,
     # Demo file
 
     demo_file <- data_upload_ui_vars$demo()
-
     demo_path <- demo_file$datapath
+
     first_line <- readLines(demo_path, n = 1)
     demo_header_ok <- all(grepl("[A-Za-z]", strsplit(first_line, ",")[[1]]))
 
     # Omics files
 
     omics_files <- data_upload_ui_vars$omics_data()
-
     omics_paths <- omics_files$datapath
+
     omics_header_ok <- sapply(omics_paths, function(f) {
       first_line <- readLines(f, n = 1)
       all(grepl("[A-Za-z]", strsplit(first_line, ",")[[1]]))
     })
-
     bad_headers <- which(!omics_header_ok)
 
 
     # Error messages set up
 
     if (!demo_header_ok)  {
-      msgs <- c(msgs, "The metadata file is missing a proper header.")
+      msgs <- c(msgs, "The metadata file is missing a correct header.")
     }
     if (length(bad_headers)) {
-      msgs <- c(msgs, sprintf("These omics files are missing proper headers: %s",
+      msgs <- c(msgs, sprintf("These omics files are missing correct headers: %s",
                 paste(omics_files$name[bad_headers], collapse = ", ")))
     }
 
-    if (length(msgs)) msgs else NULL # Adjusting error msgs vector in case header error detected
+    if (length(msgs)) msgs else NULL
+  })
+
+  # TRUE only when all uploaded files have correct header
+  files_header_ok <- shiny::reactive({
+    is.null(header_error_msgs())
   })
 
 
+  ## ---- Error / validation UI before file reading ---------------------------------------------
 
-
-
-
-
-
-
-  ## ---- Error / validation UI ---------------------------------------------
-
-  output$uploadErrorMsg <- shiny::renderUI({
+  output$uploadErrorMsg_preread <- shiny::renderUI({
     msgs <- character(0)
 
     # Required inputs
@@ -281,11 +279,11 @@ data_upload_server <- function(input, output, session,
     }
   })
 
-  ## ---- Readers (guarded by files_ext_ok) ---------------------------------
+  ## ---- Readers (guarded by files_ext_ok & files_header_ok) ---------------------------------
 
   # Demographics data upload
   get_demo_data <- shiny::reactive({
-    shiny::req(data_upload_ui_vars$demo(), files_ext_ok(), is.null(header_error_msgs()))
+    shiny::req(data_upload_ui_vars$demo(), files_ext_ok(), files_header_ok())
     read.table(
       data_upload_ui_vars$demo()$datapath,
       header = TRUE,
@@ -295,7 +293,7 @@ data_upload_server <- function(input, output, session,
 
   # Omics data upload
   get_omics_data <- shiny::reactive({
-    shiny::req(data_upload_ui_vars$omics_data(), files_ext_ok())
+    shiny::req(data_upload_ui_vars$omics_data(), files_ext_ok(), files_header_ok())
     omics_data <- lapply(
       data_upload_ui_vars$omics_data()$datapath,
       read.table,
@@ -309,11 +307,74 @@ data_upload_server <- function(input, output, session,
     omics_data
   })
 
-  ## ---- Response / reference selection UIs --------------------------------
+  ## ---- File content check - data --------------------------------------
+
+  # Omics file numeric-entries-only check (except header), no NAs accepted
+  omics_entries_error_msgs <- shiny::reactive({
+
+    req(data_upload_ui_vars$demo(), data_upload_ui_vars$omics_data(), get_omics_data())
+
+    msgs <- character(0)
+
+    omics_data <- get_omics_data() # assigns the reactive’s value (function outcome) to local variable
+
+    omics_entries_ok <- sapply(omics_data, function(dat) {
+      all(sapply(dat, function(col) is.numeric(col) && all(!is.na(col))))
+    })
+    bad_entries <- which(!omics_entries_ok)
+
+    # Error messages set up
+
+    if (length(bad_entries)) {
+      msgs <- c(msgs, sprintf("These omics files contain non-numeric entries: %s",
+                paste(names(omics_data)[bad_entries], collapse = ", ")))
+    }
+
+    if (length(msgs)) msgs else NULL
+    })
+
+
+  #
+
+
+
+
+
+  # TRUE only when all uploaded files pass the content checks
+  files_content_ok <- shiny::reactive({
+    is.null(omics_entries_error_msgs())
+  }) # add is.null(some_error_msgs()) for each additional content check
+
+
+  ## ---- Error / validation UI after file reading ---------------------------------------------
+
+  output$uploadErrorMsg_postread <- shiny::renderUI({
+    msgs <- character(0)
+
+    # Omics entries (numeric only)
+    if (!is.null(omics_entries_error_msgs())) msgs <- c(msgs, omics_entries_error_msgs())
+
+    # add for each check msgs output
+    # ...
+
+
+    if (length(msgs)) {
+      shiny::div(
+        class = "alert alert-danger",
+        shiny::tags$ul(lapply(msgs, shiny::tags$li))
+      )
+    } else {
+      NULL
+    }
+  })
+
+
+
+  ## ---- Response / reference selection UIs (only if files_content_ok) --------------------------------
 
   # Show candidate categorical columns from demo
   output$response_var <- shiny::renderUI({
-    shiny::req(get_demo_data())
+    shiny::req(get_demo_data(),files_content_ok())
     keep_cols <- apply(get_demo_data(), 2, function(i) {
       # categorical-ish: < 9 unique and min cell count > 1
       tab <- table(as.character(i))
@@ -328,7 +389,7 @@ data_upload_server <- function(input, output, session,
 
   # Reference level picker (wait until response_var chosen)
   output$ref_var <- shiny::renderUI({
-    shiny::req(get_demo_data(), data_upload_ui_vars$response_var())
+    shiny::req(get_demo_data(), data_upload_ui_vars$response_var(), files_content_ok())
     shiny::selectInput(
       ns("ref_var"),
       "Select reference level",
@@ -345,10 +406,9 @@ data_upload_server <- function(input, output, session,
     )
   })
 
-  ## ---- Pathway analysis dataset chooser (robust to missing 'kegg') -------
-
+  ## ---- Pathway analysis dataset chooser (robust to missing 'kegg') (only if files_content_ok) -------
   perform_pathway_analysis <- shiny::reactive({
-    shiny::req(get_omics_data())
+    shiny::req(get_omics_data(), files_content_ok())
     # Guard if 'kegg' not available
     if (!exists("kegg", inherits = TRUE)) return(character(0))
     kegg_genes <- tryCatch(unlist(kegg), error = function(e) character(0))
