@@ -385,6 +385,7 @@ data_upload_server <- function(input, output, session,
 
   ## ---- Response / reference selection UIs (only if files_content_ok) --------------------------------
 
+
   # Show candidate categorical columns from demo
   output$response_var <- shiny::renderUI({
     shiny::req(get_demo_data(),files_content_ok())
@@ -393,11 +394,24 @@ data_upload_server <- function(input, output, session,
       tab <- table(as.character(i))
       length(tab) < 9 && (length(tab) == 0 || min(tab) > 1)
     })
-    shiny::selectInput(
-      ns("response_var"),
-      "Select response variable",
-      choices = colnames(get_demo_data()[, keep_cols, drop = FALSE])
-    )
+    if (!any(keep_cols)) {
+      output$ref_var <- NULL # Removal in case ui element already showing #############################################################
+      output$response_var <- NULL ##########################################################################################################################
+      return(
+      shiny::div(
+        class = "alert alert-danger",
+        shiny::div("Metadata file does not contain any categorical variables!"),
+        shiny::div("Only variables with more than 1 and less than 9 unique values are considered categorical.")
+        )
+      )
+      # Info message if no categorical columns found
+    } else {
+      shiny::selectInput(
+        ns("response_var"),
+        "Select response variable",
+        choices = colnames(get_demo_data()[, keep_cols, drop = FALSE]),
+      )
+    }
   })
 
   # Reference level picker (wait until response_var chosen)
