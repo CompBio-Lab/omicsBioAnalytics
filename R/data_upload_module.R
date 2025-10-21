@@ -308,16 +308,13 @@ data_upload_server <- function(input, output, session,
 
   # Omics file numeric-entries-only check (except header), no NAs accepted
   omics_entries_error_msgs <- shiny::reactive({
-
     req(data_upload_ui_vars$demo(), data_upload_ui_vars$omics_data(), get_omics_data())
-
     msgs <- character(0)
-
     omics_data <- get_omics_data() # assigns the reactive’s value (function outcome) to local variable
-
     omics_entries_ok <- sapply(omics_data, function(dat) {
       all(sapply(dat, function(col) is.numeric(col) && all(!is.na(col))))
     })
+
     bad_entries <- which(!omics_entries_ok)
 
     # Error messages set up
@@ -326,20 +323,36 @@ data_upload_server <- function(input, output, session,
       msgs <- c(msgs, sprintf("These omics files contain non-numeric entries: %s",
                 paste(names(omics_data)[bad_entries], collapse = ", ")))
     }
-
     if (length(msgs)) msgs else NULL
     })
 
 
-  #
+  # Demo and Omics files have to have the same number of samples (rows)
+  equal_row_numbers_error_msgs <- shiny::reactive({
+    req(data_upload_ui_vars$demo(), data_upload_ui_vars$omics_data(), get_demo_data, get_omics_data())
+    msgs <- character(0)
+    demo_data <- get_demo_data()
+    demo_rows <- nrow(demo_data)
+    omics_data <- get_omics_data()
+    omics_rows <- sapply(omics_data, nrow)
 
+    different_row_n <- omics_rows != demo_rows
 
+    # Error messages set up
+
+    if (any(different_row_n)) {
+      msgs <- c(msgs, sprintf("These omics files do not have the same amount of rows as the metadata file: %s",
+                              paste(names(omics_data)[different_row_n], collapse = ", ")))
+    }
+    if (length(msgs)) msgs else NULL
+  })
 
 
 
   # TRUE only when all uploaded files pass the content checks
   files_content_ok <- shiny::reactive({
-    is.null(omics_entries_error_msgs())
+    is.null(omics_entries_error_msgs()) &&
+    is.null(equal_row_numbers_error_msgs())
   }) # add is.null(some_error_msgs()) for each additional content check
 
 
@@ -350,6 +363,9 @@ data_upload_server <- function(input, output, session,
 
     # Omics entries (numeric only)
     if (!is.null(omics_entries_error_msgs())) msgs <- c(msgs, omics_entries_error_msgs())
+
+    # Equal row numbers
+    if (!is.null(equal_row_numbers_error_msgs())) msgs <- c(msgs, equal_row_numbers_error_msgs())
 
     # add for each check msgs output
     # ...
