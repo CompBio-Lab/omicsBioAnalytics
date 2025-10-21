@@ -259,9 +259,6 @@ data_upload_server <- function(input, output, session,
     if (is.null(data_upload_ui_vars$omics_data())) {
       msgs <- c(msgs, "At least one omics data file is required!")
     }
-    if (is.null(data_upload_ui_vars$response_var()) || isTRUE(is.na(data_upload_ui_vars$response_var()))) {
-      msgs <- c(msgs, "A response variable is required!")
-    }
 
     # Extension mismatches
     if (!is.null(ext_error_msgs())) msgs <- c(msgs, ext_error_msgs())
