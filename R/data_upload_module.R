@@ -318,7 +318,6 @@ data_upload_server <- function(input, output, session,
     bad_entries <- which(!omics_entries_ok)
 
     # Error messages set up
-
     if (length(bad_entries)) {
       msgs <- c(msgs, sprintf("These omics files contain non-numeric entries: %s",
                 paste(names(omics_data)[bad_entries], collapse = ", ")))
@@ -327,7 +326,7 @@ data_upload_server <- function(input, output, session,
     })
 
 
-  # Demo and Omics files have to have the same number of samples (rows)
+  # Metadata and Omics files have to have the same number of samples (rows)
   equal_row_numbers_error_msgs <- shiny::reactive({
     req(data_upload_ui_vars$demo(), data_upload_ui_vars$omics_data(), get_demo_data, get_omics_data())
     msgs <- character(0)
@@ -339,7 +338,6 @@ data_upload_server <- function(input, output, session,
     different_row_n <- omics_rows != demo_rows
 
     # Error messages set up
-
     if (any(different_row_n)) {
       msgs <- c(msgs, sprintf("These omics files do not have the same amount of rows as the metadata file: %s",
                               paste(names(omics_data)[different_row_n], collapse = ", ")))
@@ -348,12 +346,33 @@ data_upload_server <- function(input, output, session,
   })
 
 
+  # Metadata file has to contain at least one categorical variable
+   categoricals_error_msgs <- shiny::reactive({
+     req(data_upload_ui_vars$demo(), get_demo_data)
+     msgs <- character(0)
+     demo_data <- get_demo_data()
+
+     categoricals <- apply(get_demo_data(), 2, function(i) {
+       tab <- table(as.character(i))
+       length(tab) < 9 && (length(tab) == 0 || min(tab) > 1)
+     })
+
+     # Error messages set up
+     if (all(!categoricals)) {
+       msgs <- c(msgs, sprintf("Metadata file does not contain any categorical variables!
+                               Only variables with more than 1 and less than 9 unique values are considered categorical."))
+     }
+     if (length(msgs)) msgs else NULL
+   })
+
+
 
   # TRUE only when all uploaded files pass the content checks
-  files_content_ok <- shiny::reactive({
+  file_contents_ok <- shiny::reactive({
     is.null(omics_entries_error_msgs()) &&
-    is.null(equal_row_numbers_error_msgs())
-  }) # add is.null(some_error_msgs()) for each additional content check
+    is.null(equal_row_numbers_error_msgs()) &&
+    is.null(categoricals_error_msgs())
+  })
 
 
   ## ---- Error / validation UI after file reading ---------------------------------------------
@@ -367,8 +386,8 @@ data_upload_server <- function(input, output, session,
     # Equal row numbers
     if (!is.null(equal_row_numbers_error_msgs())) msgs <- c(msgs, equal_row_numbers_error_msgs())
 
-    # add for each check msgs output
-    # ...
+    # Metadata contains categorical variables
+    if (!is.null(categoricals_error_msgs())) msgs <- c(msgs, categoricals_error_msgs())
 
 
     if (length(msgs)) {
@@ -383,40 +402,26 @@ data_upload_server <- function(input, output, session,
 
 
 
-  ## ---- Response / reference selection UIs (only if files_content_ok) --------------------------------
-
+  ## ---- Response / reference selection UIs  (guarded by file_contents_ok)--------------------------------
 
   # Show candidate categorical columns from demo
   output$response_var <- shiny::renderUI({
-    shiny::req(get_demo_data(),files_content_ok())
+    shiny::req(get_demo_data(), file_contents_ok())
     keep_cols <- apply(get_demo_data(), 2, function(i) {
       # categorical-ish: < 9 unique and min cell count > 1
       tab <- table(as.character(i))
       length(tab) < 9 && (length(tab) == 0 || min(tab) > 1)
     })
-    if (!any(keep_cols)) {
-      output$ref_var <- NULL # Removal in case ui element already showing #############################################################
-      output$response_var <- NULL ##########################################################################################################################
-      return(
-      shiny::div(
-        class = "alert alert-danger",
-        shiny::div("Metadata file does not contain any categorical variables!"),
-        shiny::div("Only variables with more than 1 and less than 9 unique values are considered categorical.")
-        )
-      )
-      # Info message if no categorical columns found
-    } else {
-      shiny::selectInput(
-        ns("response_var"),
-        "Select response variable",
-        choices = colnames(get_demo_data()[, keep_cols, drop = FALSE]),
-      )
-    }
+    shiny::selectInput(
+      ns("response_var"),
+      "Select response variable",
+      choices = colnames(get_demo_data()[, keep_cols, drop = FALSE])
+    )
   })
 
   # Reference level picker (wait until response_var chosen)
   output$ref_var <- shiny::renderUI({
-    shiny::req(get_demo_data(), data_upload_ui_vars$response_var(), files_content_ok())
+    shiny::req(get_demo_data(), data_upload_ui_vars$response_var(), file_contents_ok())
     shiny::selectInput(
       ns("ref_var"),
       "Select reference level",
@@ -433,9 +438,9 @@ data_upload_server <- function(input, output, session,
     )
   })
 
-  ## ---- Pathway analysis dataset chooser (robust to missing 'kegg') (only if files_content_ok) -------
+  ## ---- Pathway analysis dataset chooser (robust to missing 'kegg') (only if file_contents_ok) -------
   perform_pathway_analysis <- shiny::reactive({
-    shiny::req(get_omics_data(), files_content_ok())
+    shiny::req(get_omics_data(), file_contents_ok())
     # Guard if 'kegg' not available
     if (!exists("kegg", inherits = TRUE)) return(character(0))
     kegg_genes <- tryCatch(unlist(kegg), error = function(e) character(0))
