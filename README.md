@@ -10,31 +10,37 @@ and biomarker discovery analysis. The user can either use the provided
 sample data to run through the various analyses of the app or upload
 their own data (demographics variables, omics data).
 
-## Installation instructions for OmicsBioAnalytics web-application
+## Four ways to use OmicsBioAnalytics
+
+## 1) Deployed application
+
+[omicsBioAnaltyics](https://amritsingh.shinyapps.io/omicsBioAnalytics/)
+
+## 2) R-package
 
 - assuming R is installed.
 
-### install R-package
+### a) install R-package
 
 ``` r
 install.packages("pak")   # if not installed
 pak::pak("CompBio-Lab/omicsBioAnalytics")
 ```
 
-### run the Shiny webapp
+### b) run the Shiny webapp
 
 ``` r
 omicsBioAnalytics::start_app()
 ```
 
-## Docker solution
+## 3) Docker solution
 
 - either have git installed or download the
   [repo](https://github.com/CompBio-Lab/omicsBioAnalytics)
 - docker should be installed
 - docker deamon should be running
 
-### build docker image
+### a) build docker image
 
 ``` bash
 git clone https://github.com/CompBio-Lab/omicsBioAnalytics.git
@@ -42,10 +48,37 @@ cd omicsBioAnalytics
 docker build -t omicsbioanalytics . --no-cache
 ```
 
-### run container
+### b) run container
 
 ``` bash
 docker run -p 3838:3838 -t omicsbioanalytics
+```
+
+## 4) RENV
+
+### a) clone repo
+
+``` bash
+git clone https://github.com/CompBio-Lab/omicsBioAnalytics.git
+cd omicsBioAnalytics/inst/app
+```
+
+### b) open app.Rproj in RStudio and install renv
+
+``` r
+install.packages("renv")
+```
+
+### c) install dependencies
+
+``` r
+renv::restore()
+```
+
+### d) launch app
+
+``` r
+runApp()
 ```
 
 ## Voice-enabled analytics (OPTIONAL)
