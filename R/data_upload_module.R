@@ -409,8 +409,9 @@ data_upload_server <- function(input, output, session,
     shiny::req(get_demo_data(), file_contents_ok())
     keep_cols <- apply(get_demo_data(), 2, function(i) {
       # categorical-ish: < 9 unique and min cell count > 1
+      i <- i[!is.na(i) & i != "NA"]
       tab <- table(as.character(i))
-      length(tab) < 9 && (length(tab) == 0 || min(tab) > 1)
+      length(tab) >= 2 && length(tab) < 9
     })
     shiny::selectInput(
       ns("response_var"),
