@@ -20,22 +20,27 @@ data_upload_ui <- function(id) {
         )
         ),
       shiny::column(6,
-                    shiny::fileInput(
-                      inputId = ns("demo"),
-                      label   = "Metadata",
-                      accept  = c(".csv", ".tsv", ".txt")
+                    tags$div(style="display:flex; align-items:flex-start;",
+                             shiny::fileInput(
+                               ns("demo"), label="Metadata",
+                               accept=c(".csv",".tsv",".txt")),
+                             shiny::actionButton(
+                               ns("demo_help"), label="", icon=icon("question"),
+                               class="btn btn-link", style="color:gray; margin-left:6px;")
                     )
-        ),
+      ),
       shiny::column(6, shiny::uiOutput(ns("response_var"))),
       shiny::column(6, shiny::uiOutput(ns("ref_var")))
     ),
     shiny::fluidRow(
       shiny::column(6,
-                    shiny::fileInput(
-                      ns("omics_data"),
-                      label   = "Omics data (upload one or more files)",
-                      multiple = TRUE,
-                      accept   = c(".csv", ".tsv", ".txt")
+                    tags$div(style="display:flex; align-items:flex-start;",
+                             shiny::fileInput(
+                               ns("omics_data"), label="Omics data (upload one or more files)",
+                               multiple = TRUE, accept=c(".csv",".tsv",".txt")),
+                             shiny::actionButton(
+                               ns("omics_data_help"), label="", icon=icon("question"),
+                               class="btn btn-link", style="color:gray; margin-left:6px;")
                     )
         )),
     shiny::fluidRow(
@@ -132,6 +137,22 @@ data_upload_ui_vars <- function(input, output, session) {
 data_upload_server <- function(input, output, session,
                                heart_failure_data, covid19_data, data_upload_ui_vars) {
   ns <- session$ns
+
+  observeEvent(input$demo_help, {
+    showModal(modalDialog(
+      title = "Metadata example",
+      HTML('<img src="metadata_example.png" width="100%" height="300px"">'),
+      easyClose = TRUE, footer = modalButton("Close")
+    ))
+  })
+
+  observeEvent(input$omics_data_help, {
+    showModal(modalDialog(
+      title = "Omics data example",
+      HTML('<img src="omicsfile_example.png" width="100%" height="300px"">'),
+      easyClose = TRUE, footer = modalButton("Close")#, size = "m"
+    ))
+  })
 
   ## ---- Extension validation helpers --------------------------------------
 
