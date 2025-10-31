@@ -367,7 +367,7 @@ data_upload_server <- function(input, output, session,
   })
 
 
-  # Metadata file has to contain at least one categorical variable
+  # Metadata file has to contain at least one categorical variable (NAs ignored)
   categoricals_error_msgs <- shiny::reactive({
      req(data_upload_ui_vars$demo(), get_demo_data)
      msgs <- character(0)
@@ -387,29 +387,11 @@ data_upload_server <- function(input, output, session,
    })
 
 
-  # Metadata file empty entries check - only character columns
-  demo_empty_entries_error_msgs <- shiny::reactive({
-    req(data_upload_ui_vars$demo(), data_upload_ui_vars$omics_data(), get_demo_data())
-    msgs <- character(0)
-    demo_data <- get_demo_data()
-    demo_entries_ok <- apply(demo_data, 2, function(i) {
-      all(i != "", na.rm = TRUE)
-    })
-
-    # Error messages set up
-    if (any(!demo_entries_ok)) {
-      msgs <- c(msgs, sprintf("Metadata file contains empty entries."))
-    }
-    if (length(msgs)) msgs else NULL
-  })
-
-
   # TRUE only when all uploaded files pass the content checks
   file_contents_ok <- shiny::reactive({
     is.null(omics_entries_error_msgs()) &&
     is.null(equal_row_numbers_error_msgs()) &&
-    is.null(categoricals_error_msgs()) &&
-    is.null(demo_empty_entries_error_msgs())
+    is.null(categoricals_error_msgs())
   })
 
 
