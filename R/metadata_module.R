@@ -349,23 +349,32 @@ metadata_server <- function(input, output, session,
           }) %>% t))
         googleVis::gvisTable(cbind(" " = rownames(d), d))
       })
-      output$chisq_test <- shiny::renderPrint({
-        chisq.test(demo[, metadata_ui_vars$cat_var()], response)
-      })
-      output$chisq_conclusion <- shiny::renderText({
-        pval <- chisq.test(demo[, metadata_ui_vars$cat_var()], response)$p.value
-        ifelse(pval < 0.05,
-          paste0("There is a statistically significant
-          association (at p<0.05) between ",
-            metadata_ui_vars$cat_var(), " and ",
-            response_var, " (p-value = ", signif(pval, 3), ")."),
-          paste0("There is no statistically significant
-          association (at p<0.05) between ",
-            metadata_ui_vars$cat_var(), " and ",
-            response_var, " (p-value = ", signif(pval, 3), ")."))
-      })
-      output$chisq_title <- shiny::renderText({
-        metadata_ui_vars$cat_var()})
+    })
+    observeEvent(list(metadata_ui_vars$cat_var(), response), {
+      if (length(unique(demo[[metadata_ui_vars$cat_var()]])) > 1) {
+        output$chisq_test <- shiny::renderPrint({
+          chisq.test(demo[, metadata_ui_vars$cat_var()], response)
+        })
+        output$chisq_conclusion <- shiny::renderText({
+          pval <- chisq.test(demo[, metadata_ui_vars$cat_var()], response)$p.value
+          ifelse(pval < 0.05,
+            paste0("There is a statistically significant
+            association (at p<0.05) between ",
+              metadata_ui_vars$cat_var(), " and ",
+              response_var, " (p-value = ", signif(pval, 3), ")."),
+            paste0("There is no statistically significant
+            association (at p<0.05) between ",
+              metadata_ui_vars$cat_var(), " and ",
+              response_var, " (p-value = ", signif(pval, 3), ")."))
+        })
+        output$chisq_title <- shiny::renderText({
+          metadata_ui_vars$cat_var()})
+      } else {
+        output$chisq_test <- renderText("")
+        output$chisq_conclusion <- renderText(
+          "! The selected variable has only 1 level (1 unique value). A Chi-square test cannot be performed.")
+        output$chisq_title <- renderText("")
+      }
     })
   }
 }
