@@ -327,7 +327,7 @@ data_upload_server <- function(input, output, session,
 
   ## ---- File content check - data --------------------------------------
 
-  # Omics file numeric-entries-only check (except header), no NAs accepted
+  # Omics file numeric entries check (except header), no NAs accepted
   omics_entries_error_msgs <- shiny::reactive({
     req(data_upload_ui_vars$demo(), data_upload_ui_vars$omics_data(), get_omics_data())
     msgs <- character(0)
@@ -368,12 +368,12 @@ data_upload_server <- function(input, output, session,
 
 
   # Metadata file has to contain at least one categorical variable
-   categoricals_error_msgs <- shiny::reactive({
+  categoricals_error_msgs <- shiny::reactive({
      req(data_upload_ui_vars$demo(), get_demo_data)
      msgs <- character(0)
      demo_data <- get_demo_data()
 
-     categoricals <- apply(get_demo_data(), 2, function(i) {
+     categoricals <- apply(demo_data, 2, function(i) {
        tab <- table(as.character(i))
        length(tab) < 9 && (length(tab) == 0 || min(tab) > 1)
      })
@@ -387,12 +387,29 @@ data_upload_server <- function(input, output, session,
    })
 
 
+  # Metadata file empty entries check - only character columns
+  demo_empty_entries_error_msgs <- shiny::reactive({
+    req(data_upload_ui_vars$demo(), data_upload_ui_vars$omics_data(), get_demo_data())
+    msgs <- character(0)
+    demo_data <- get_demo_data()
+    demo_entries_ok <- apply(demo_data, 2, function(i) {
+      all(i != "", na.rm = TRUE)
+    })
+
+    # Error messages set up
+    if (any(!demo_entries_ok)) {
+      msgs <- c(msgs, sprintf("Metadata file contains empty entries."))
+    }
+    if (length(msgs)) msgs else NULL
+  })
+
 
   # TRUE only when all uploaded files pass the content checks
   file_contents_ok <- shiny::reactive({
     is.null(omics_entries_error_msgs()) &&
     is.null(equal_row_numbers_error_msgs()) &&
-    is.null(categoricals_error_msgs())
+    is.null(categoricals_error_msgs()) &&
+    is.null(demo_empty_entries_error_msgs())
   })
 
 
@@ -409,6 +426,9 @@ data_upload_server <- function(input, output, session,
 
     # Metadata contains categorical variables
     if (!is.null(categoricals_error_msgs())) msgs <- c(msgs, categoricals_error_msgs())
+
+    # Metadata contains no empty entries
+    if (!is.null(demo_empty_entries_error_msgs())) msgs <- c(msgs, demo_empty_entries_error_msgs())
 
 
     if (length(msgs)) {
