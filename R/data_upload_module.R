@@ -64,9 +64,8 @@ data_upload_ui <- function(id) {
           shiny::a("CJC 2019",
             href = "https://www.ncbi.nlm.nih.gov/pubmed/30935638")),
           shiny::column(6, "read paper: ",
-            shiny::a("bioRxiv",
-              href = "https://www.biorxiv.org/content/10.1101/
-              2020.03.24.004655v1"))),
+            shiny::a("Cell 2020",
+              href = "https://pubmed.ncbi.nlm.nih.gov/32416070/"))),
         shiny::fluidRow(shiny::column(6,
           shiny::a("watch demo",
             href = "https://www.youtube.com/watch?v=u1zLL4uXZi8")),

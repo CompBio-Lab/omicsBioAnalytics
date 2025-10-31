@@ -15,7 +15,7 @@ pcaPairs = function(pcs,y,col){
 
 #' @export
 #' @rdname pcaHeatmap
-pcaHeatmap = function(pcs, demo){
+pcaHeatmap = function(pcs, demo, pval){
   pvalheatmap <- matrix(0, ncol = ncol(demo), nrow = ncol(pcs))
   rownames(pvalheatmap) <- colnames(pcs)
   colnames(pvalheatmap) <- colnames(demo)
@@ -25,6 +25,7 @@ pcaHeatmap = function(pcs, demo){
     }
   }
 
+  if(pval == "pvalue"){
   pvalheatmap[pvalheatmap < 0.01] <- 0.01
   pvalheatmap[pvalheatmap > 0.1] <- 1
   pvalheatmap[pvalheatmap > 0.01 & pvalheatmap < 0.05] <- 0.05
@@ -33,15 +34,50 @@ pcaHeatmap = function(pcs, demo){
   pvalheatmap[pvalheatmap == "0.05"] <- "0.01 < p < 0.05"
   pvalheatmap[pvalheatmap == "0.1"] <- "0.05 < p < 0.10"
   pvalheatmap[pvalheatmap == "1"] <- "p > 0.10"
-  pvalheatmap %>% as.data.frame %>% mutate(Variable = rownames(.)) %>%
-    tidyr::gather(Threshold, Value, -Variable) %>% mutate(Threshold = factor(Threshold,
+  pvalheatmap %>% as.data.frame %>%
+    mutate(Variable = rownames(.)) %>%
+    tidyr::gather(Threshold, Value, -Variable) %>%
+    mutate(Threshold = factor(Threshold,
       levels = unique(Threshold))) %>%
     mutate(Value = factor(Value, levels = c("p < 0.01", "0.01 < p < 0.05", "0.05 < p < 0.10", "p > 0.10"))) %>%
     ggplot(aes(Threshold, Variable)) +
-    geom_tile(aes(fill = Value), colour = "white") + scale_fill_manual(values = rev(RColorBrewer::brewer.pal(n = 8,
-      name = "Blues")[c(2, 4, 6, 8)])) + customTheme(sizeStripFont = 10,
+    geom_tile(aes(fill = Value), colour = "white") +
+    scale_fill_manual(values = rev(RColorBrewer::brewer.pal(n = 8,
+      name = "Blues")[c(2, 4, 6, 8)])) +
+    customTheme(sizeStripFont = 10,
         xAngle = 40, hjust = 1, vjust = 1, xSize = 10, ySize = 10,
-        xAxisSize = 10, yAxisSize = 10) + xlab("") + ylab("")
+        xAxisSize = 10, yAxisSize = 10) +
+    xlab("") + ylab("") + coord_flip()
+  } else {
+    pvalheatmap <- matrix(
+      p.adjust(as.vector(pvalheatmap), method = "BH"),
+      nrow = nrow(pvalheatmap),
+      ncol = ncol(pvalheatmap),
+      dimnames = dimnames(pvalheatmap)
+    )
+    pvalheatmap[pvalheatmap < 0.01] <- 0.01
+    pvalheatmap[pvalheatmap > 0.1] <- 1
+    pvalheatmap[pvalheatmap > 0.01 & pvalheatmap < 0.05] <- 0.05
+    pvalheatmap[pvalheatmap > 0.05 & pvalheatmap < 0.1] <- 0.1
+    pvalheatmap[pvalheatmap == "0.01"] <- "FDR < 0.01"
+    pvalheatmap[pvalheatmap == "0.05"] <- "0.01 < FDR < 0.05"
+    pvalheatmap[pvalheatmap == "0.1"] <- "0.05 < FDR < 0.10"
+    pvalheatmap[pvalheatmap == "1"] <- "FDR > 0.10"
+    pvalheatmap %>% as.data.frame %>%
+      mutate(Variable = rownames(.)) %>%
+      tidyr::gather(Threshold, Value, -Variable) %>%
+      mutate(Threshold = factor(Threshold,
+                                                                               levels = unique(Threshold))) %>%
+      mutate(Value = factor(Value, levels = c("FDR < 0.01", "0.01 < FDR < 0.05", "0.05 < FDR < 0.10", "FDR > 0.10"))) %>%
+      ggplot(aes(Threshold, Variable)) +
+      geom_tile(aes(fill = Value), colour = "white") +
+      scale_fill_manual(values = rev(RColorBrewer::brewer.pal(n = 8,
+                                                              name = "Blues")[c(2, 4, 6, 8)])) +
+      customTheme(sizeStripFont = 10,
+                  xAngle = 40, hjust = 1, vjust = 1, xSize = 10, ySize = 10,
+                  xAxisSize = 10, yAxisSize = 10) +
+      xlab("") + ylab("") + coord_flip()
+  }
 }
 
 #' @export

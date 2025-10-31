@@ -25,18 +25,35 @@ eda_ui <- function(id) {
       max = 5,
       value = 1
     ),
-      shiny::h3("PCA component plots", align = "center")
+      shiny::h3("Score plots", align = "center")
   ), shiny::column(8,
     shiny::h3("Percentage variation explained", align = "center"),
     shiny::verbatimTextOutput(ns("var_exp"))
   )),
-    shiny::fluidRow(shiny::column(4,
-      omicsBioAnalytics::splom_ui(ns("pca_splom"))),
-      shiny::column(8,
-        shiny::h3("Which metadata variables are associated with major
-      sources of variation in the expression data?", align = "center"),
-      omicsBioAnalytics::pvalue_heatmap_ui(ns("pca_pvalue_heatmap"))
-    ))
+  shiny::fluidRow(
+    shiny::column(4,
+                  omicsBioAnalytics::splom_ui(ns("pca_splom"))
+    ),
+    shiny::column(8,
+                  shiny::h3(
+                    "Association between metadata and PC scores",
+                    align = "center"
+                  ),
+
+                  # Center radio buttons
+                  shiny::div(
+                    style = "display: flex; justify-content: center; align-items: center; margin-bottom: 10px;",
+                    shiny::radioButtons(
+                      ns("pval"), "P-values or FDR:",
+                      c("p-value" = "pvalue", "FDR" = "fdr"),
+                      "pvalue",
+                      inline = TRUE
+                    )
+                  ),
+
+                  omicsBioAnalytics::pvalue_heatmap_ui(ns("pca_pvalue_heatmap"))
+    )
+  )
   )
 }
 
@@ -54,7 +71,9 @@ eda_ui_vars <- function(input, output, session) {
   return(
     list(
       ncomp = shiny::reactive({
-        input$ncomp})
+        input$ncomp}),
+      pval = shiny::reactive({
+        input$pval})
     )
   )
 }
@@ -72,21 +91,29 @@ eda_ui_vars <- function(input, output, session) {
 #' @export
 eda_server <- function(input, output, session, demo, dataset,
   response, group_colors, eda_ui_vars) {
-  shiny::observeEvent(eda_ui_vars$ncomp(), {
-    pcs <- prcomp(
+  pcs <- reactive({
+    prcomp(
       x = dataset,
       scale. = TRUE,
       center = TRUE,
       rank. = eda_ui_vars$ncomp()
     )
-
-    output$var_exp <- shiny::renderPrint({
-      summary(pcs)})
-
-    shiny::callModule(module = omicsBioAnalytics::splom_server,
-      id = "pca_splom", pcs = pcs$x, response = response,
-      group_colors = group_colors)
-    shiny::callModule(module = omicsBioAnalytics::pvalue_heatmap_server,
-      id = "pca_pvalue_heatmap", demo = demo, pcs = pcs$x)
   })
+
+  shiny::observeEvent(list(eda_ui_vars$ncomp(), eda_ui_vars$pval()), ignoreInit = TRUE, {
+    req(eda_ui_vars$ncomp(), eda_ui_vars$pval())
+
+    output$var_exp <- shiny::renderPrint(summary(pcs()))
+
+    shiny::callModule(omicsBioAnalytics::splom_server,
+                      id = "pca_splom",
+                      pcs = pcs()$x, response = response, group_colors = group_colors
+    )
+
+    shiny::callModule(omicsBioAnalytics::pvalue_heatmap_server,
+                      id = "pca_pvalue_heatmap",
+                      demo = demo, pcs = pcs()$x, pval = eda_ui_vars$pval()
+    )
+  })
+
 }

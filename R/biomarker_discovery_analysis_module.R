@@ -115,21 +115,26 @@ biomarker_discovery_analysis_ui <- function(id, dataset_names, response, respons
                 shiny::tabPanel("Heatmaps",
                   shiny::fluidRow(shiny::column(6,
                     shiny::h3("Base classifier", align = "center"),
-                    canvasXpress::canvasXpressOutput(ns("heatmapBasePanel")),
+                    canvasXpress::canvasXpressOutput(ns("heatmapBasePanel"), height = "600px"),
                     shiny::radioButtons(ns("heatmapBasePanelRadioButtons"), "Select dataset", c(" "), inline = TRUE)
                   ),
                     shiny::column(6,
                       shiny::h3("Ensemble classifier", align = "center"),
-                      canvasXpress::canvasXpressOutput(ns("heatmapEnsemblePanel"))
+                      canvasXpress::canvasXpressOutput(ns("heatmapEnsemblePanel"), height = "700px")
                     ))),
                 shiny::tabPanel("Biological signficance of ensemble panel",
-                  shiny::fluidRow(
-                    shiny::column(6, shiny::sliderInput(ns("corCutoff"), shiny::h5("Correlation cutoff", align = "center"),
-                      min = 0.5, max = 1, value = 0.5)),
-                    shiny::column(6, shiny::sliderInput(ns("bioFDR"), shiny::h5("FDR cutoff for pathway enrichment", align = "center"),
-                      min = 0.05, max = 1, value = 0.05))
-                  ),
-                  visNetwork::visNetworkOutput(ns("biomarkerSig"), height = "600px", width = "100%")
+                                shiny::fluidRow(
+                                  shiny::column(4, shiny::sliderInput(ns("corCutoff"), shiny::h5("Correlation cutoff", align = "center"),
+                                                                      min = 0.5, max = 1, value = 0.5)),
+                                  shiny::column(4, shiny::sliderInput(ns("bioFDR"), shiny::h5("FDR cutoff for pathway enrichment", align = "center"),
+                                                                      min = 0.05, max = 1, value = 0.05)),
+                                  shiny::column(4,
+                                                shiny::br(),  # vertical spacing
+                                                shiny::actionButton(ns("updateSig"), "Update network", icon = shiny::icon("diagram-project"),
+                                                                    class = "btn-primary", width = "100%")
+                                  )
+                                ),
+                                visNetwork::visNetworkOutput(ns("biomarkerSig"), height = "600px", width = "100%")
                 )
               )
 
@@ -195,7 +200,8 @@ biomarker_discovery_analysis_ui_vars <- function(input, output, session) {
        }),
       bioFDR = shiny::reactive({
         input$bioFDR
-       })
+       }),
+      updateSig = shiny::reactive({ input$updateSig })
     )
   )
 }
@@ -739,100 +745,102 @@ biomarker_discovery_analysis_server <- function(input, output, session, datasets
     pairs <- split(t(combn(colnames(dat), 2)), 1:nrow(t(combn(colnames(dat), 2))))
     print(dim(pairs))
 
-    output$biomarkerSig <- visNetwork::renderVisNetwork({
-      withProgress(message = 'Constructing network.',
-        detail = 'This may take a while...', value = 0, {
+    # ENRICHMENT / NETWORK -----------------------------------------------------
 
-          edgesCor <- lapply(pairs, function(i){
-            data = as.data.frame(dat[, i])
-            c(colnames(data), cor(data[,1], data[,2]))
-          }) %>%
-            do.call(rbind, .) %>%
-            as.data.frame() %>%
-            dplyr::rename(from = V1, to = V2, cor = V3) %>%
-            mutate(cor = as.numeric(as.character(cor))) %>%
-            filter(abs(cor) > biomarker_discovery_analysis_ui_vars$corCutoff()) %>%
-            mutate(color = ifelse(cor > 0, "salmon", "blue"))
-          print(summary(edgesCor$cor))
+    # (your code that builds `dat`, `pairs`, etc. stays the same up to this point)
 
-          ## gene set enrichment analysis
-          # dbs <- listEnrichrDbs()
-          dbs <- c("Jensen_DISEASES", "KEGG_2019_Human", "WikiPathways_2019_Human")
-          enriched <- enrichr(unlist(ensemblePanel), dbs)
+    shiny::observeEvent(biomarker_discovery_analysis_ui_vars$updateSig(), {
 
-          edgesGset <- do.call(rbind, enriched) %>%
-            mutate(database = rep(names(enriched), sapply(enriched, nrow)))
-          if (sum(edgesGset$Adjusted.P.value < biomarker_discovery_analysis_ui_vars$bioFDR()) < 1) {
-            edges <- edgesCor
-          } else {
-            sig_pathways <- do.call(rbind, enriched) %>%
-              mutate(database = rep(names(enriched), sapply(enriched, nrow))) %>%
-              filter(Adjusted.P.value < biomarker_discovery_analysis_ui_vars$bioFDR()) %>%
-              dplyr::select(Term, Genes)
-            edgesGset <- data.frame(from = rep(sig_pathways$Term, sapply(strsplit(sig_pathways$Genes, ";"), length)),
-              to = unlist(strsplit(sig_pathways$Genes, ";")) ) %>%
-              mutate(cor = 1, color = "black")
-            edges <- rbind(edgesCor, edgesGset)
-          }
+      output$biomarkerSig <- visNetwork::renderVisNetwork({
+        shiny::withProgress(message = 'Constructing network.',
+                            detail = 'This may take a while...', value = 0, {
 
-          # nodes
-          nodes <- data.frame(id = unique(c(as.character(edges$from), unlist(ensemblePanel))))
-          group <- lapply(as.character(nodes$id), function(i){
-            mtch <- paste(na.omit(sapply(names(ensemblePanel), function(j){
-              if (i %in% ensemblePanel[[j]]) {
-                j
-              } else {
-                return(NA)
-              }
-            })), collapse = "_")
-          }) %>% unlist()
-          group[group == ""] <- "pathway"
+                              # Read current slider values but do not create reactivity
+                              cor_cut  <- shiny::isolate(biomarker_discovery_analysis_ui_vars$corCutoff())
+                              fdr_cut  <- shiny::isolate(biomarker_discovery_analysis_ui_vars$bioFDR())
 
-          nodes$group <- group
-          nodes$label <- nodes$id
-          # nodes$shape <- "pathway.png"
+                              # --- correlations
+                              edgesCor <- lapply(pairs, function(i){
+                                data = as.data.frame(dat[, i])
+                                c(colnames(data), cor(data[,1], data[,2]))
+                              }) %>%
+                                do.call(rbind, .) %>% as.data.frame() %>%
+                                dplyr::rename(from = V1, to = V2, cor = V3) %>%
+                                dplyr::mutate(cor = as.numeric(as.character(cor))) %>%
+                                dplyr::filter(abs(cor) > cor_cut) %>%
+                                dplyr::mutate(color = ifelse(cor > 0, "salmon", "blue"))
 
-          shapes <- c("square", "triangle", "circle", "dot", "star",
-            "ellipse", "database", "text", "diamond")
-          if (length(unique(group)) < length(shapes)) {
-            nodeShapes <- c(shapes[1:length(unique(group))], "box")
-            names(nodeShapes) <- c(names(setdiff(unique(group), "pathway")), "pathway")
-          } else {
-            nodeShapes <- rep('circle', length(unique(group)))
-            names(nodeShapes) <- unique(group)
-          }
+                              # --- enrichment
+                              dbs <- c("Jensen_DISEASES", "KEGG_2019_Human", "WikiPathways_2019_Human")
+                              bg_genes <- unique(unlist(lapply(datasets, colnames)))
+                              enriched <- enrichr(unlist(ensemblePanel), dbs, background = bg_genes)
 
-          if (length(unique(group)) < length(shapes)) {
-            nodeColors <- RColorBrewer::brewer.pal(12, "Set3")[1:length(unique(group))]
-            names(nodeColors) <- unique(group)
-          } else {
-            nodeColors <- colors()[1:length(unique(group))]  # 657 possibilites
-            names(nodeColors) <- unique(group)
-          }
-          nodes$shape <- nodeShapes[group]
-          nodes$color <- nodeColors[group]
+                              edgesGset_all <- do.call(rbind, enriched) %>%
+                                dplyr::mutate(database = rep(names(enriched), sapply(enriched, nrow)))
 
-          nodeLegend <- lapply(unique(group), function(i){
-            list(label = i, shape = as.character(nodeShapes[i]), color = as.character(nodeColors[i]))
-          })
+                              if (sum(edgesGset_all$Adjusted.P.value < fdr_cut) < 1) {
+                                edges <- edgesCor
+                              } else {
+                                sig_pathways <- edgesGset_all %>%
+                                  dplyr::filter(Adjusted.P.value < fdr_cut) %>%
+                                  dplyr::select(Term, Genes)
 
-          ledges <- data.frame(color = c("salmon", "blue", "black"),
-            label = c("positive correlation", "negative correlation", "curated link"),
-            font.align = "top")
+                                edgesGset <- data.frame(
+                                  from = rep(sig_pathways$Term, sapply(strsplit(sig_pathways$Genes, ";"), length)),
+                                  to   = unlist(strsplit(sig_pathways$Genes, ";"))
+                                ) %>% dplyr::mutate(cor = 1, color = "black")
 
-          visNetwork(nodes, edges) %>%
-            visNodes(shapeProperties = list(useBorderWithImage = TRUE)) %>%
-            visLayout(randomSeed = 2) %>%
-            visLegend(width = 1, position = "left", main = "Group") %>%
-            visLegend(addNodes = nodeLegend,
-              addEdges = ledges,
-              useGroups = FALSE) %>%
-            visEvents(click = "function(nodes){
-        Shiny.onInputChange('click', nodes.nodes[0]);
-        ;}"
-            )
+                                edges <- rbind(edgesCor, edgesGset)
+                              }
 
-        })
+                              # --- nodes & visNetwork (unchanged from your code, but uses `edges`)
+                              nodes <- data.frame(id = unique(c(as.character(edges$from), unlist(ensemblePanel))))
+                              group <- lapply(as.character(nodes$id), function(i){
+                                mtch <- paste(na.omit(sapply(names(ensemblePanel), function(j){
+                                  if (i %in% ensemblePanel[[j]]) j else NA
+                                })), collapse = "_")
+                              }) %>% unlist()
+                              group[group == ""] <- "pathway"
+
+                              nodes$group <- group
+                              nodes$label <- nodes$id
+
+                              shapes <- c("square", "triangle", "circle", "dot", "star", "ellipse", "database", "text", "diamond")
+                              if (length(unique(group)) < length(shapes)) {
+                                nodeShapes <- c(shapes[1:length(unique(group))], "box")
+                                names(nodeShapes) <- c(names(setdiff(unique(group), "pathway")), "pathway")
+                              } else {
+                                nodeShapes <- rep('circle', length(unique(group)))
+                                names(nodeShapes) <- unique(group)
+                              }
+
+                              if (length(unique(group)) < 12) {
+                                nodeColors <- RColorBrewer::brewer.pal(12, "Set3")[1:length(unique(group))]
+                                names(nodeColors) <- unique(group)
+                              } else {
+                                nodeColors <- colors()[1:length(unique(group))]
+                                names(nodeColors) <- unique(group)
+                              }
+
+                              nodes$shape <- nodeShapes[group]
+                              nodes$color <- nodeColors[group]
+
+                              nodeLegend <- lapply(unique(group), function(i){
+                                list(label = i, shape = as.character(nodeShapes[i]), color = as.character(nodeColors[i]))
+                              })
+
+                              ledges <- data.frame(color = c("salmon", "blue", "black"),
+                                                   label = c("positive correlation", "negative correlation", "curated link"),
+                                                   font.align = "top")
+
+                              visNetwork::visNetwork(nodes, edges) %>%
+                                visNetwork::visNodes(shapeProperties = list(useBorderWithImage = TRUE)) %>%
+                                visNetwork::visLayout(randomSeed = 2) %>%
+                                visNetwork::visLegend(width = 1, position = "left", main = "Group") %>%
+                                visNetwork::visLegend(addNodes = nodeLegend, addEdges = ledges, useGroups = FALSE) %>%
+                                visNetwork::visEvents(click = "function(nodes){ Shiny.onInputChange('click', nodes.nodes[0]); }")
+                            })
+      })
     })
 
   })

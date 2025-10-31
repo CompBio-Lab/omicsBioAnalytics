@@ -12,7 +12,8 @@ splom_ui <- function(id) {
 
 #' Scatterplot matrix module server-side processing (no extra deps)
 #' @export
-splom_server <- function(input, output, session, pcs, response, group_colors) {
+splom_server <- function(input, output, session, pcs,
+                         response, group_colors) {
 
   png_path <- file.path(tempdir(), "pca_splom.png")
   grDevices::png(png_path, width = 1600, height = 1200, res = 150, bg = "white")
