@@ -408,9 +408,6 @@ data_upload_server <- function(input, output, session,
     # Metadata contains categorical variables
     if (!is.null(categoricals_error_msgs())) msgs <- c(msgs, categoricals_error_msgs())
 
-    # Metadata contains no empty entries
-    if (!is.null(demo_empty_entries_error_msgs())) msgs <- c(msgs, demo_empty_entries_error_msgs())
-
 
     if (length(msgs)) {
       shiny::div(

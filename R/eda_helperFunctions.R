@@ -16,12 +16,14 @@ pcaPairs = function(pcs,y,col){
 #' @export
 #' @rdname pcaHeatmap
 pcaHeatmap = function(pcs, demo, pval){
-  pvalheatmap <- matrix(0, ncol = ncol(demo), nrow = ncol(pcs))
+  # Only variables with >1 unique value, NAs excluded at variable value
+  demo_filtered <- demo[, sapply(demo, function(x) length(unique(na.omit(x[x != "NA" & x != ""]))) > 1), drop = FALSE]
+  pvalheatmap <- matrix(0, ncol = ncol(demo_filtered), nrow = ncol(pcs))
   rownames(pvalheatmap) <- colnames(pcs)
-  colnames(pvalheatmap) <- colnames(demo)
+  colnames(pvalheatmap) <- colnames(demo_filtered)
   for(i in 1:ncol(pcs)){
-    for(j in 1:ncol(demo)){
-      pvalheatmap[i,j] <- summary(aov(lm(pcs[,i]~demo[,j])))[[1]][1, "Pr(>F)"]
+    for(j in 1:ncol(demo_filtered)){
+      pvalheatmap[i,j] <- summary(aov(lm(pcs[,i]~demo_filtered[,j])))[[1]][1, "Pr(>F)"]
     }
   }
 
