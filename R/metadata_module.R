@@ -391,14 +391,14 @@ metadata_server <- function(input, output, session,
   output$summary_table <- shiny::renderTable({
     matrix(
       c("Samples", nrow(demo),
-        "Continuous variables", length(cont_var),
-        "Categorical variables", length(cat_var)),
+        "Continuous variables", length(colnames(demo_split$data.cont)),
+        "Categorical variables", length(colnames(demo_split$data.cat))),
       ncol = 2, byrow = TRUE
       )
     }, colnames = FALSE)
 
   output$summary_table_cont <- shiny::renderTable({
-    data.frame(Variable = cont_var) %>%
+    data.frame(Variable = colnames(demo_split$data.cont)) %>%
       rowwise() %>%
       mutate(
         Mean = mean(demo[[Variable]], na.rm=TRUE),
@@ -411,7 +411,7 @@ metadata_server <- function(input, output, session,
     })
 
   output$summary_table_cat <- shiny::renderTable({
-    data.frame(Variable = cat_var) %>%
+    data.frame(Variable = colnames(demo_split$data.cat)) %>%
       rowwise() %>%
       mutate(
         Missing = sum(is.na(demo[[Variable]])),
