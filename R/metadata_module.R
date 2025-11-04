@@ -69,6 +69,14 @@ metadata_ui <- function(id) {
               "#chisq_conclusion {color: red;}"),
             shiny::textOutput(ns("chisq_conclusion")))
         )
+      ),
+      shiny::tabPanel("General data overview",
+        shiny::h3("Totals"),
+        shiny::tableOutput(ns("summary_table")),
+        shiny::h3("Continuous variables"),
+        shiny::tableOutput(ns("summary_table_cont")),
+        shiny::h3("Categorical variables"),
+        shiny::tableOutput(ns("summary_table_cat"))
       )
     ))
   )
@@ -377,4 +385,45 @@ metadata_server <- function(input, output, session,
       }
     })
   }
+
+
+  #@@@@@@@@@@@@@@@@@@@@@@@ Summary tables panel @@@@@@@@@@@@@@@@@@@@@@@#
+  output$summary_table <- shiny::renderTable({
+    matrix(
+      c("Samples", nrow(demo),
+        "Continuous variables", length(cont_var),
+        "Categorical variables", length(cat_var)),
+      ncol = 2, byrow = TRUE
+      )
+    }, colnames = FALSE)
+
+  output$summary_table_cont <- shiny::renderTable({
+    data.frame(Variable = cont_var) %>%
+      rowwise() %>%
+      mutate(
+        Mean = mean(demo[[Variable]], na.rm=TRUE),
+        Missing = sum(is.na(demo[[Variable]])),
+        Missing = paste0(Missing, "  (", round(Missing / nrow(demo) * 100, 1), "%)"),
+        Unique = n_distinct(demo[[Variable]]),
+        Min = min(demo[[Variable]], na.rm=TRUE),
+        Max = max(demo[[Variable]], na.rm=TRUE)
+      )
+    })
+
+  output$summary_table_cat <- shiny::renderTable({
+    data.frame(Variable = cat_var) %>%
+      rowwise() %>%
+      mutate(
+        Missing = sum(is.na(demo[[Variable]])),
+        Missing = paste0(Missing, "  (", round(Missing / nrow(demo) * 100, 1), "%)"),
+        Unique = n_distinct(demo[[Variable]]),
+        Total = paste(
+          paste0(
+            names(table(demo[[Variable]])), " = ",
+            table(demo[[Variable]]), "  (", round(prop.table(table(demo[[Variable]], useNA = "no")) * 100, 1), "%)"),
+          collapse = ", "
+        )
+      ) %>%
+      rename("Totals & Percent (NAs excluded)" = Total)
+    })
 }
