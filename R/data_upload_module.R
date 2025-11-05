@@ -445,7 +445,7 @@ data_upload_server <- function(input, output, session,
     shiny::selectInput(
       ns("ref_var"),
       "Select reference level",
-      choices = unique(get_demo_data()[, data_upload_ui_vars$response_var(), drop = TRUE])
+      choices = na.omit(unique(get_demo_data()[, data_upload_ui_vars$response_var(), drop = TRUE]))
     )
   })
 

@@ -309,6 +309,11 @@ dea_server <- function(input, output, session, datasetName, dataset, response,
         selectedCoef <- which(levels(response) == sapply(strsplit(dea_ui_vars$comparison(), " vs. "), function(i){ i[[2]]}))
         shiny::req(length(selectedCoef) == 1)
 
+        # removing NA rows
+        keep <- !is.na(response)
+        response <- droplevels(response[keep])
+        dataset <- dataset[keep, ]
+
         design <- model.matrix(~response)
         print("response")
         print(response)
