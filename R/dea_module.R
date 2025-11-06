@@ -310,8 +310,12 @@ dea_server <- function(input, output, session, datasetName, dataset, response,
         shiny::req(length(selectedCoef) == 1)
 
         # removing NA rows
+        print("response")
+        print(response)
         keep <- !is.na(response)
         response <- droplevels(response[keep])
+        print("response")
+        print(response)
         dataset <- dataset[keep, ]
 
         design <- model.matrix(~response)
