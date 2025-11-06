@@ -299,7 +299,7 @@ data_upload_server <- function(input, output, session,
   ## ---- Readers (guarded by files_ext_ok & files_header_ok) ---------------------------------
 
   # Demographics data upload
-  get_demo_data <- shiny::reactive({
+  get_demo_data_raw <- shiny::reactive({
     shiny::req(data_upload_ui_vars$demo(), files_ext_ok(), files_header_ok())
     read.table(
       data_upload_ui_vars$demo()$datapath,
@@ -309,7 +309,7 @@ data_upload_server <- function(input, output, session,
   })
 
   # Omics data upload
-  get_omics_data <- shiny::reactive({
+  get_omics_data_raw <- shiny::reactive({
     shiny::req(data_upload_ui_vars$omics_data(), files_ext_ok(), files_header_ok())
     omics_data <- lapply(
       data_upload_ui_vars$omics_data()$datapath,
@@ -328,9 +328,9 @@ data_upload_server <- function(input, output, session,
 
   # Omics file numeric entries check (except header), no NAs accepted
   omics_entries_error_msgs <- shiny::reactive({
-    req(data_upload_ui_vars$demo(), data_upload_ui_vars$omics_data(), get_omics_data())
+    req(data_upload_ui_vars$demo(), data_upload_ui_vars$omics_data(), get_omics_data_raw())
     msgs <- character(0)
-    omics_data <- get_omics_data() # assigns the reactive’s value (function outcome) to local variable
+    omics_data <- get_omics_data_raw() # assigns the reactive’s value (function outcome) to local variable
     omics_entries_ok <- sapply(omics_data, function(dat) {
       all(sapply(dat, function(col) is.numeric(col) && all(!is.na(col))))
     })
@@ -348,11 +348,11 @@ data_upload_server <- function(input, output, session,
 
   # Metadata and Omics files have to have the same number of samples (rows)
   equal_row_numbers_error_msgs <- shiny::reactive({
-    req(data_upload_ui_vars$demo(), data_upload_ui_vars$omics_data(), get_demo_data, get_omics_data())
+    req(data_upload_ui_vars$demo(), data_upload_ui_vars$omics_data(), get_demo_data_raw(), get_omics_data_raw())
     msgs <- character(0)
-    demo_data <- get_demo_data()
+    demo_data <- get_demo_data_raw()
     demo_rows <- nrow(demo_data)
-    omics_data <- get_omics_data()
+    omics_data <- get_omics_data_raw()
     omics_rows <- sapply(omics_data, nrow)
 
     different_row_n <- omics_rows != demo_rows
@@ -368,9 +368,9 @@ data_upload_server <- function(input, output, session,
 
   # Metadata file has to contain at least one categorical variable (NAs ignored)
   categoricals_error_msgs <- shiny::reactive({
-     req(data_upload_ui_vars$demo(), get_demo_data)
+     req(data_upload_ui_vars$demo(), get_demo_data_raw)
      msgs <- character(0)
-     demo_data <- get_demo_data()
+     demo_data <- get_demo_data_raw()
 
      categoricals <- apply(demo_data, 2, function(i) {
        tab <- table(as.character(i))
@@ -425,8 +425,8 @@ data_upload_server <- function(input, output, session,
 
   # Show candidate categorical columns from demo
   output$response_var <- shiny::renderUI({
-    shiny::req(get_demo_data(), file_contents_ok())
-    keep_cols <- apply(get_demo_data(), 2, function(i) {
+    shiny::req(get_demo_data_raw(), file_contents_ok())
+    keep_cols <- apply(get_demo_data_raw(), 2, function(i) {
       # categorical-ish: < 9 unique and min cell count > 1
       i <- i[!is.na(i) & i != "NA"]
       tab <- table(as.character(i))
@@ -435,27 +435,49 @@ data_upload_server <- function(input, output, session,
     shiny::selectInput(
       ns("response_var"),
       "Select response variable",
-      choices = colnames(get_demo_data()[, keep_cols, drop = FALSE])
+      choices = colnames(get_demo_data_raw()[, keep_cols, drop = FALSE])
     )
   })
 
   # Reference level picker (wait until response_var chosen)
   output$ref_var <- shiny::renderUI({
-    shiny::req(get_demo_data(), data_upload_ui_vars$response_var(), file_contents_ok())
+    shiny::req(get_demo_data_raw(), data_upload_ui_vars$response_var(), file_contents_ok())
     shiny::selectInput(
       ns("ref_var"),
       "Select reference level",
-      choices = na.omit(unique(get_demo_data()[, data_upload_ui_vars$response_var(), drop = TRUE]))
+      choices = na.omit(unique(get_demo_data_raw()[, data_upload_ui_vars$response_var(), drop = TRUE]))
     )
   })
 
   # Factor response with chosen reference
   response <- shiny::reactive({
-    shiny::req(get_demo_data(), data_upload_ui_vars$response_var(), data_upload_ui_vars$ref_var())
+    shiny::req(get_demo_data_raw(), data_upload_ui_vars$response_var(), data_upload_ui_vars$ref_var())
     stats::relevel(
-      factor(as.character(get_demo_data()[, data_upload_ui_vars$response_var()])),
+      factor(as.character(get_demo_data_raw()[, data_upload_ui_vars$response_var()])),
       ref = data_upload_ui_vars$ref_var()
     )
+  })
+
+  ## ---- Rows where response is NA removal --------------------------------
+
+  keep_rows <- shiny::reactive({
+    shiny::req(data_upload_ui_vars$response_var())
+    demo <- get_demo_data_raw()
+    !is.na(demo[, data_upload_ui_vars$response_var()])
+  })
+
+  get_demo_data <- shiny::reactive({
+    get_demo_data_raw()[keep_rows(), ]
+  })
+
+  get_omics_data <- reactive({
+    lapply(get_omics_data_raw(), function(df) df[keep_rows(), ])
+  })
+
+  # print sample numbers
+  observe({
+    print(nrow(get_demo_data()))
+    print(sapply(get_omics_data(), nrow))
   })
 
   ## ---- Pathway analysis dataset chooser (robust to missing 'kegg') (only if file_contents_ok) -------

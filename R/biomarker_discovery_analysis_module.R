@@ -228,11 +228,6 @@ biomarker_discovery_analysis_server <- function(input, output, session, datasets
     shiny::req(length(response) > 0 )
     shiny::req(sum(biomarker_discovery_analysis_ui_vars$selectedGroups() %in% response) > 0)
 
-    keep <- !is.na(response)
-    response <- droplevels(response[keep])
-    datasets <- lapply(datasets, function(d) d[keep, , drop = FALSE])
-
-
     ## only consider data for selected two groups
     if (nlevels(response) > 2) {
       subset_response <- shiny::isolate({droplevels(response[response %in% input$selectedGroups])})
