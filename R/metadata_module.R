@@ -388,6 +388,7 @@ metadata_server <- function(input, output, session,
 
 
   #@@@@@@@@@@@@@@@@@@@@@@@ Summary tables panel @@@@@@@@@@@@@@@@@@@@@@@#
+
   output$summary_table <- shiny::renderTable({
     matrix(
       c("Samples", nrow(demo),
@@ -397,33 +398,26 @@ metadata_server <- function(input, output, session,
       )
     }, colnames = FALSE)
 
-  output$summary_table_cont <- shiny::renderTable({
-    data.frame(Variable = colnames(demo_split$data.cont)) %>%
-      rowwise() %>%
-      mutate(
-        Mean = mean(demo[[Variable]], na.rm=TRUE),
-        Missing = sum(is.na(demo[[Variable]])),
-        Missing = paste0(Missing, "  (", round(Missing / nrow(demo) * 100, 1), "%)"),
-        Unique = n_distinct(demo[[Variable]]),
-        Min = min(demo[[Variable]], na.rm=TRUE),
-        Max = max(demo[[Variable]], na.rm=TRUE)
-      )
-    })
 
-  output$summary_table_cat <- shiny::renderTable({
-    data.frame(Variable = colnames(demo_split$data.cat)) %>%
-      rowwise() %>%
-      mutate(
-        Missing = sum(is.na(demo[[Variable]])),
-        Missing = paste0(Missing, "  (", round(Missing / nrow(demo) * 100, 1), "%)"),
-        Unique = n_distinct(demo[[Variable]]),
-        Total = paste(
-          paste0(
-            names(table(demo[[Variable]])), " = ",
-            table(demo[[Variable]]), "  (", round(prop.table(table(demo[[Variable]], useNA = "no")) * 100, 1), "%)"),
-          collapse = ", "
-        )
-      ) %>%
-      rename("Totals & Percent (NAs excluded)" = Total)
-    })
-}
+    output$summary_table_cont <- shiny::renderTable({
+      cont_var <- setdiff(colnames(demo_split$data.cont), data_upload_ui_vars$response_var())
+      response <- data_upload_ui_vars$response_var()
+      table1::table1(
+        as.formula(paste("~", paste(cont_var, collapse = " + "), "|", response)),
+        data = demo,
+        render.continuous=c(
+          .="Mean (SD)", .="Median", .="Min", .="Max"))
+      })
+
+
+    output$summary_table_cat <- shiny::renderTable({
+      cat_var <- setdiff(colnames(demo_split$data.cat), data_upload_ui_vars$response_var())
+      response <- data_upload_ui_vars$response_var()
+      demo_cat <- demo
+      demo_cat[cat_var] <- lapply(demo_cat[cat_var], as.character)
+      table1::table1(
+        as.formula(paste("~", paste(cat_var, collapse = "+"), "|", response)),
+        data = demo_cat)
+      })
+
+    }
