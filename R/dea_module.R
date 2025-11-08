@@ -351,7 +351,7 @@ dea_server <- function(input, output, session, datasetName, dataset, response,
           }
         })
 
-        # selected varibales
+        # selected variables
         shiny::observeEvent(dea_ui_vars$variable_name(),{
           output$selection <- shiny::renderPrint({
             # detect triggers

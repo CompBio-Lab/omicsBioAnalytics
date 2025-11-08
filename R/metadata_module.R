@@ -398,26 +398,23 @@ metadata_server <- function(input, output, session,
       )
     }, colnames = FALSE)
 
+  output$summary_table_cont <- shiny::renderTable({
+    cont_var <- setdiff(colnames(demo_split$data.cont), data_upload_ui_vars$response_var())
+    response <- data_upload_ui_vars$response_var()
+    table1::table1(
+      as.formula(paste("~", paste(cont_var, collapse = " + "), "|", response)),
+      data = demo,
+      render.continuous=c(
+        .="Mean (SD)", .="Median", .="Min", .="Max"))
+    })
 
-    output$summary_table_cont <- shiny::renderTable({
-      cont_var <- setdiff(colnames(demo_split$data.cont), data_upload_ui_vars$response_var())
-      response <- data_upload_ui_vars$response_var()
-      table1::table1(
-        as.formula(paste("~", paste(cont_var, collapse = " + "), "|", response)),
-        data = demo,
-        render.continuous=c(
-          .="Mean (SD)", .="Median", .="Min", .="Max"))
-      })
-
-
-    output$summary_table_cat <- shiny::renderTable({
-      cat_var <- setdiff(colnames(demo_split$data.cat), data_upload_ui_vars$response_var())
-      response <- data_upload_ui_vars$response_var()
-      demo_cat <- demo
-      demo_cat[cat_var] <- lapply(demo_cat[cat_var], as.character)
-      table1::table1(
-        as.formula(paste("~", paste(cat_var, collapse = "+"), "|", response)),
-        data = demo_cat)
-      })
-
-    }
+  output$summary_table_cat <- shiny::renderTable({
+    cat_var <- setdiff(colnames(demo_split$data.cat), data_upload_ui_vars$response_var())
+    response <- data_upload_ui_vars$response_var()
+    demo_cat <- demo
+    demo_cat[cat_var] <- lapply(demo_cat[cat_var], as.character)
+    table1::table1(
+      as.formula(paste("~", paste(cat_var, collapse = "+"), "|", response)),
+      data = demo_cat)
+    })
+  }
