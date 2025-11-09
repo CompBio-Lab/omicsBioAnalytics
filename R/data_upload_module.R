@@ -211,11 +211,6 @@ data_upload_server <- function(input, output, session,
   })
 
 
-
-
-
-
-
   ## ---- File content check - headers --------------------------------------
 
   # File header existence
@@ -450,15 +445,16 @@ data_upload_server <- function(input, output, session,
   })
 
   # Factor response with chosen reference
-  response <- shiny::reactive({
+  response_raw <- shiny::reactive({
     shiny::req(get_demo_data_raw(), data_upload_ui_vars$response_var(), data_upload_ui_vars$ref_var())
+    shiny::req(data_upload_ui_vars$ref_var() %in% unique(get_demo_data_raw()[, data_upload_ui_vars$response_var()]))
     stats::relevel(
       factor(as.character(get_demo_data_raw()[, data_upload_ui_vars$response_var()])),
       ref = data_upload_ui_vars$ref_var()
     )
   })
 
-  ## ---- Rows where response is NA removal --------------------------------
+  ## ---- Row removal where response is NA --------------------------------
 
   keep_rows <- shiny::reactive({
     shiny::req(data_upload_ui_vars$response_var())
@@ -470,15 +466,14 @@ data_upload_server <- function(input, output, session,
     get_demo_data_raw()[keep_rows(), ]
   })
 
-  get_omics_data <- reactive({
+  get_omics_data <- shiny::reactive({
     lapply(get_omics_data_raw(), function(df) df[keep_rows(), ])
   })
 
-  # print sample numbers
-  observe({
-    print(nrow(get_demo_data()))
-    print(sapply(get_omics_data(), nrow))
+  response <- shiny::reactive({
+    response_raw()[keep_rows()]
   })
+
 
   ## ---- Pathway analysis dataset chooser (robust to missing 'kegg') (only if file_contents_ok) -------
   perform_pathway_analysis <- shiny::reactive({
@@ -535,6 +530,7 @@ data_upload_server <- function(input, output, session,
   return(list(
     get_demo_data            = get_demo_data,
     response                 = response,
+    response_raw              = response_raw,
     get_omics_data           = get_omics_data,
     perform_pathway_analysis = perform_pathway_analysis
   ))

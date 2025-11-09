@@ -73,6 +73,7 @@ metadata_ui <- function(id) {
       shiny::tabPanel("General data overview",
         shiny::h3("Totals"),
         shiny::tableOutput(ns("summary_table")),
+        shiny::textOutput(ns("sample_removal_note")),
         tags$head(
           includeCSS("www/styles.css")),
         shiny::h3("Continuous variables"),
@@ -133,6 +134,7 @@ metadata_server <- function(input, output, session,
   response_var <- data_upload_ui_vars$response_var()
   demo <- data_upload_server_vars$get_demo_data()
   response <- data_upload_server_vars$response()
+  response_raw <- data_upload_server_vars$response_raw()
   demo_split <- omicsBioAnalytics::splitData(demo,
     group = response_var, trim = 0.8)
 
@@ -395,10 +397,15 @@ metadata_server <- function(input, output, session,
     matrix(
       c("Samples", nrow(demo),
         "Continuous variables", length(colnames(demo_split$data.cont)),
-        "Categorical variables", length(colnames(demo_split$data.cat))),
+        "Categorical variables", length(colnames(demo_split$data.cat)),
+        "Removed samples", length(response_raw) - length(response)),
       ncol = 2, byrow = TRUE
       )
     }, colnames = FALSE)
+
+  output$sample_removal_note <- shiny::renderText({
+    paste0("Samples are removed if the response variable contains an NA value")
+  })
 
   output$summary_table_cont <- shiny::renderUI({
     cont_var <- setdiff(colnames(demo_split$data.cont), data_upload_ui_vars$response_var())
