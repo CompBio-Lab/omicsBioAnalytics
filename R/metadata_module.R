@@ -73,10 +73,12 @@ metadata_ui <- function(id) {
       shiny::tabPanel("General data overview",
         shiny::h3("Totals"),
         shiny::tableOutput(ns("summary_table")),
+        tags$head(
+          includeCSS("www/styles.css")),
         shiny::h3("Continuous variables"),
-        shiny::tableOutput(ns("summary_table_cont")),
+        shiny::htmlOutput(ns("summary_table_cont")),
         shiny::h3("Categorical variables"),
-        shiny::tableOutput(ns("summary_table_cat"))
+        shiny::htmlOutput(ns("summary_table_cat"))
       )
     ))
   )
@@ -398,23 +400,25 @@ metadata_server <- function(input, output, session,
       )
     }, colnames = FALSE)
 
-  output$summary_table_cont <- shiny::renderTable({
+  output$summary_table_cont <- shiny::renderUI({
     cont_var <- setdiff(colnames(demo_split$data.cont), data_upload_ui_vars$response_var())
     response <- data_upload_ui_vars$response_var()
-    table1::table1(
-      as.formula(paste("~", paste(cont_var, collapse = " + "), "|", response)),
-      data = demo,
-      render.continuous=c(
-        .="Mean (SD)", .="Median", .="Min", .="Max"))
-    })
+    tbl <- table1::table1(
+        as.formula(paste("~", paste(cont_var, collapse = " + "), "|", response)),
+        data = demo,
+        render.continuous=c(
+          .="Mean (SD)", .="Median", .="Min", .="Max"))
+    HTML(tbl)
+      })
 
-  output$summary_table_cat <- shiny::renderTable({
+  output$summary_table_cat <- shiny::renderUI({
     cat_var <- setdiff(colnames(demo_split$data.cat), data_upload_ui_vars$response_var())
     response <- data_upload_ui_vars$response_var()
     demo_cat <- demo
     demo_cat[cat_var] <- lapply(demo_cat[cat_var], as.character)
-    table1::table1(
-      as.formula(paste("~", paste(cat_var, collapse = "+"), "|", response)),
-      data = demo_cat)
+    tbl <- table1::table1(
+        as.formula(paste("~", paste(cat_var, collapse = "+"), "|", response)),
+        data = demo_cat)
+    HTML(tbl)
     })
   }

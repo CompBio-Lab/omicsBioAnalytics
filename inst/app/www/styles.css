@@ -10,3 +10,22 @@
 
 /* make the background color white */
 .content-wrapper {background-color: white;}
+
+
+#table1-layout
+
+.Rtable1{
+  border-spacing: 20px 0;
+}
+
+.Rtable1 th {
+  padding-left: 20px;
+}
+
+.Rtable1 td {
+  padding-left: 20px
+}
+.Rtable1 td.rowlabel > span.varlabel {
+  font-weight: bold;
+  font-size: 11pt;
+}
