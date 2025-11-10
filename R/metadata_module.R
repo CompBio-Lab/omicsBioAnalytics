@@ -363,7 +363,7 @@ metadata_server <- function(input, output, session,
       })
     })
     observeEvent(list(metadata_ui_vars$cat_var(), response), {
-      if (length(unique(demo[[metadata_ui_vars$cat_var()]])) > 1) {
+      if (length(unique(na.omit(demo[[metadata_ui_vars$cat_var()]]))) > 1) {
         output$chisq_test <- shiny::renderPrint({
           chisq.test(demo[, metadata_ui_vars$cat_var()], response)
         })
@@ -410,9 +410,11 @@ metadata_server <- function(input, output, session,
   output$summary_table_cont <- shiny::renderUI({
     cont_var <- setdiff(colnames(demo_split$data.cont), data_upload_ui_vars$response_var())
     response <- data_upload_ui_vars$response_var()
+    demo_cont <- demo
+    demo_cont[cont_var] <- lapply(demo_cont[cont_var], as.numeric)
     tbl <- table1::table1(
         as.formula(paste("~", paste(cont_var, collapse = " + "), "|", response)),
-        data = demo,
+        data = demo_cont,
         render.continuous=c(
           .="Mean (SD)", .="Median", .="Min", .="Max"))
     HTML(tbl)
