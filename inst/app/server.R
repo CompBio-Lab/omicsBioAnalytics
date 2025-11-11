@@ -24,6 +24,7 @@ server <- function(input, output, session) {
   # Run analysis
   observeEvent(data_upload_ui_vars$run(), {
 
+    shiny::req(all(table(data_upload_server_vars$response()) >= 3))
     withProgress(message = 'Running analysis...',
       detail = 'This may take some time...', value = 0, {
         ################################################################################

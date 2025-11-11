@@ -51,7 +51,8 @@ data_upload_ui <- function(id) {
           style = "color: #fff; background-color:
           #337ab7; border-color: #2e6da4"),
         shiny::uiOutput(ns("uploadErrorMsg_preread")),
-        shiny::uiOutput(ns("uploadErrorMsg_postread"))
+        shiny::uiOutput(ns("uploadErrorMsg_postread")),
+        shiny::uiOutput(ns("response_levels_check"))
       ),
       shiny::column(6,
         shiny::h3("Or try these example datasets:", align = "left"),
@@ -363,7 +364,7 @@ data_upload_server <- function(input, output, session,
 
   # Metadata file has to contain at least one categorical variable (NAs ignored)
   categoricals_error_msgs <- shiny::reactive({
-     req(data_upload_ui_vars$demo(), get_demo_data_raw)
+     req(data_upload_ui_vars$demo(), get_demo_data_raw())
      msgs <- character(0)
      demo_data <- get_demo_data_raw()
 
@@ -474,10 +475,36 @@ data_upload_server <- function(input, output, session,
     response_raw()[keep_rows()]
   })
 
+  ## ---- Response variable check --------------------------------
+
+  observe ({
+    print("response")
+    print(response())
+    print("unique response")
+    print(unique(response()))
+    print("table response")
+    print(table(response()))
+  })
+
+  output$response_levels_check <- shiny::renderUI({
+    msg <- character(0)
+    response_levels <- table(response())
+
+    if (any(response_levels < 3)) {
+      msg <- "Each level of the response variable must have at least 3 samples."
+      shiny::div(
+        class = "alert alert-danger",
+        shiny::tags$ul(lapply(msg, shiny::tags$li))
+      )
+    } else {
+      NULL
+    }
+  })
 
   ## ---- Pathway analysis dataset chooser (robust to missing 'kegg') (only if file_contents_ok) -------
   perform_pathway_analysis <- shiny::reactive({
     shiny::req(get_omics_data(), file_contents_ok())
+    shiny::req(!any(table(response()) < 3))
     # Guard if 'kegg' not available
     if (!exists("kegg", inherits = TRUE)) return(character(0))
     kegg_genes <- tryCatch(unlist(kegg), error = function(e) character(0))
@@ -530,7 +557,7 @@ data_upload_server <- function(input, output, session,
   return(list(
     get_demo_data            = get_demo_data,
     response                 = response,
-    response_raw              = response_raw,
+    response_raw             = response_raw,
     get_omics_data           = get_omics_data,
     perform_pathway_analysis = perform_pathway_analysis
   ))
