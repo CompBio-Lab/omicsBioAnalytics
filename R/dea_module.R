@@ -32,18 +32,9 @@ dea_ui <- function(id, datasetName, dataset, response) {
       shiny::column(
   2,
   shiny::br(),
-  bslib::popover(
-    shiny::actionButton(
-      ns("search_button"),
-      label = "",
-      icon = shiny::icon("question"),
-      class = "btn btn-link",   # link-style button
-      style = "color:gray; padding-left:6px;"
-    ),
-    title   = "Tests",
-    content = "OLS: Ordinary Least Squares, LIMMA: OLS with eBayes variance correction factor",
-    placement = "right",
-    trigger   = "click"
+  shiny::actionButton(
+    ns("ols_limma"), label = "", icon = shiny::icon("question"),
+    class = "btn btn-link", style = "color:gray; padding-left:6px;"
   )),
       shiny::column(6, shiny::verbatimTextOutput(ns("selection")), style = 'padding: 15px 10px 0px 10px;'),
       shiny::column(6, align = "center",
@@ -211,6 +202,13 @@ dea_server <- function(input, output, session, datasetName, dataset, response,
     showModal(modalDialog(
       title = "Information",
       "The red diamond depicts the mean expression in the group.",
+      easyClose = TRUE, footer = modalButton("Close")
+    ))
+  })
+  observeEvent(input$ols_limma, {
+    showModal(modalDialog(
+      title = "Information",
+      "OLS: Ordinary Least Squares, LIMMA: OLS with eBayes variance correction factor",
       easyClose = TRUE, footer = modalButton("Close")
     ))
   })
