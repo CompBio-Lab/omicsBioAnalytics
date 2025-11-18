@@ -7,8 +7,10 @@ options(shinytest2.wait_for_idle = 2000)
 
 
 test_that("{shinytest2} recording: www_elements", {
-  app <- AppDriver$new(variant = platform_variant(), name = "www_elements", seed = 8,
-                       height = 585, width = 979)
+  app <- AppDriver$new(
+    app_dir = testthat::test_path("../../inst/app"),
+    variant = platform_variant(), name = "www_elements",
+    seed = 8, height = 585, width = 979)
   app$expect_screenshot()
   app$set_inputs(tabs_before_analysis = "appfeatures")
   app$set_inputs(tabs_after_analysis = "appfeatures")
@@ -26,8 +28,10 @@ test_that("{shinytest2} recording: www_elements", {
 })
 
 test_that("{shinytest2} recording: data_upload_hf", {
-  app <- AppDriver$new(variant = platform_variant(), name = "data_upload_hf", seed = 1,
-      height = 585, width = 979)
+  app <- AppDriver$new(
+    app_dir = testthat::test_path("../../inst/app"),
+    variant = platform_variant(), name = "data_upload_hf",
+    seed = 1, height = 585, width = 979)
   app$set_inputs(tabs_before_analysis = "data")
   app$set_inputs(tabs_after_analysis = "data")
   app$expect_screenshot()
@@ -48,8 +52,10 @@ test_that("{shinytest2} recording: data_upload_hf", {
 })
 
 test_that("{shinytest2} recording: metadata_hf", {
-  app <- AppDriver$new(variant = platform_variant(), name = "metadata_hf", seed = 2,
-      height = 585, width = 979)
+  app <- AppDriver$new(
+    app_dir = testthat::test_path("../../inst/app"),
+    variant = platform_variant(), name = "metadata_hf",
+    seed = 2, height = 585, width = 979)
   app$set_inputs(tabs_before_analysis = "data")
   app$set_inputs(tabs_after_analysis = "data")
   rlang::warn(paste0("``data_upload-demo`` should be the path to the file, relative to the app's tests/testthat directory.\n",
@@ -80,8 +86,10 @@ test_that("{shinytest2} recording: metadata_hf", {
 })
 
 test_that("{shinytest2} recording: eda_hf", {
-  app <- AppDriver$new(variant = platform_variant(), name = "eda_hf", seed = 3, height = 585,
-      width = 979)
+  app <- AppDriver$new(
+    app_dir = testthat::test_path("../../inst/app"),
+    variant = platform_variant(), name = "eda_hf",
+    seed = 3, height = 585, width = 979)
   app$set_inputs(tabs_before_analysis = "data")
   app$set_inputs(tabs_after_analysis = "data")
   rlang::warn(paste0("``data_upload-omics_data`` should be the path to the file, relative to the app's tests/testthat directory.\n",
@@ -108,8 +116,10 @@ test_that("{shinytest2} recording: eda_hf", {
 })
 
 test_that("{shinytest2} recording: dea_hf", {
-  app <- AppDriver$new(variant = platform_variant(), name = "dea_hf", seed = 4, height = 585,
-      width = 979)
+  app <- AppDriver$new(
+    app_dir = testthat::test_path("../../inst/app"),
+    variant = platform_variant(), name = "dea_hf",
+    seed = 4, height = 585, width = 979)
   app$set_inputs(tabs_before_analysis = "data")
   app$set_inputs(tabs_after_analysis = "data")
   rlang::warn(paste0("``data_upload-demo`` should be the path to the file, relative to the app's tests/testthat directory.\n",
@@ -173,8 +183,10 @@ test_that("{shinytest2} recording: dea_hf", {
 })
 
 test_that("{shinytest2} recording: biomarkerPanels_hf", {
-  app <- AppDriver$new(variant = platform_variant(), name = "biomarkerPanels_hf",
-      seed = 5, height = 585, width = 979)
+  app <- AppDriver$new(
+    app_dir = testthat::test_path("../../inst/app"),
+    variant = platform_variant(), name = "biomarkerPanels_hf",
+    seed = 5, height = 585, width = 979)
   app$set_inputs(tabs_before_analysis = "data")
   app$set_inputs(tabs_after_analysis = "data")
   rlang::warn(paste0("``data_upload-omics_data`` should be the path to the file, relative to the app's tests/testthat directory.\n",
@@ -213,7 +225,8 @@ test_that("{shinytest2} recording: biomarkerPanels_hf", {
   app$expect_screenshot()
   app$click("biomarker_discovery_analysis-biomarker_plot-variable_options_button")
   app$click("biomarker_discovery_analysis-biomarker_plot-variable_options_button")
-  app$wait_for_js("document.querySelector('#biomarker_discovery_analysis-biomarker_panels-dotplot_options_button') !== null") # wait for button to appear
+  app$wait_for_js("document.querySelector('#biomarker_discovery_analysis-biomarker_panels-dotplot_options_button') !== null",
+                  timeout = 60000) # wait (1 min) for button to appear
   app$click("biomarker_discovery_analysis-biomarker_panels-dotplot_options_button")
   app$set_inputs(`biomarker_discovery_analysis-biomarker_panels-hjust` = 0.5)
   app$set_inputs(`biomarker_discovery_analysis-biomarker_panels-vjust` = 0.5)
@@ -231,8 +244,10 @@ test_that("{shinytest2} recording: biomarkerPanels_hf", {
 })
 
 test_that("{shinytest2} recording: upload_error_msgs_hf", {
-  app <- AppDriver$new(variant = platform_variant(), name = "upload_error_msgs_hf",
-      seed = 6, height = 585, width = 979)
+  app <- AppDriver$new(
+    app_dir = testthat::test_path("../../inst/app"),
+    variant = platform_variant(), name = "upload_error_msgs_hf",
+    seed = 6, height = 585, width = 979)
   app$set_inputs(tabs_before_analysis = "data")
   app$set_inputs(tabs_after_analysis = "data")
   rlang::warn(paste0("``data_upload-omics_data`` should be the path to the file, relative to the app's tests/testthat directory.\n",
@@ -284,8 +299,10 @@ test_that("{shinytest2} recording: upload_error_msgs_hf", {
 })
 
 test_that("{shinytest2} recording: NA_LowLeveln_SingleVal_handling_hf", {
-  app <- AppDriver$new(variant = platform_variant(), name = "NA_LowLeveln_SingleVal_handling_hf",
-      seed = 7, height = 585, width = 979)
+  app <- AppDriver$new(
+    app_dir = testthat::test_path("../../inst/app"),
+    variant = platform_variant(), name = "NA_LowLeveln_SingleVal_handling_hf",
+    seed = 7, height = 585, width = 979)
   app$set_inputs(tabs_before_analysis = "data")
   app$set_inputs(tabs_after_analysis = "data")
   rlang::warn(paste0("``data_upload-omics_data`` should be the path to the file, relative to the app's tests/testthat directory.\n",
@@ -379,7 +396,10 @@ test_that("{shinytest2} recording: NA_LowLeveln_SingleVal_handling_hf", {
   app$set_inputs(tabs_after_analysis = "subitem3")
   app$set_inputs(tabs_before_analysis = "subitem4")
   app$set_inputs(tabs_after_analysis = "subitem4")
+  app$wait_for_js("document.querySelector('#biomarker_discovery_analysis-build') !== null") # wait for biomarker_discovery_analysis-build to appear
   app$click("biomarker_discovery_analysis-build")
+  app$wait_for_js("document.querySelector('#biomarker_discovery_analysis-biomarker_panels-dotplot_options_button') !== null",
+                  timeout = 60000) # wait (1 min) for button to appear
   app$click("biomarker_discovery_analysis-biomarker_plot-variable_options_button")
   app$set_inputs(`biomarker_discovery_analysis-alpha` = c(0.7, 1))
   app$set_inputs(`biomarker_discovery_analysis-corCutoff` = 0.5)
