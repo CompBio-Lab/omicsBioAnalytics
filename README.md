@@ -171,14 +171,14 @@ database](https://github.com/singha53/omicsBioAnalytics/blob/master/inst/extdata
 ## Testing
 
 ``` r
-shinytest2::record_test("inst/app")
-
 devtools::load_all(".")
-testthat::test_dir("tests/testthat")
 devtools::test()
 
 ## compare snapshots
 testthat::snapshot_review('shinytest2/')
+
+## design own test
+shinytest2::record_test("inst/app")
 ```
 
 ## Contributing
