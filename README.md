@@ -192,7 +192,11 @@ sure to restart your R session, then install the package from Github.
 
 ## Links
 
-- Repository: <https://github.com/singha53/omicsBioAnalytics/>
+- web-app code: <https://github.com/CompBio-Lab/omicsBioAnalytics>
+- deployed app: <https://amritsingh.shinyapps.io/omicsBioAnalytics/>
+- web-app walkthrough: <https://youtube.com/watch?v=u1zLL4uXZi8&ab_channel=AmritSingh>
+- alexa skill code: <https://github.com/CompBio-Lab/omics-bioanalytics-alexa-skill>
+- alexa skill walkthrough: <https://www.youtube.com/watch?v=MEDLiO4CL7o&ab_channel=AmritSingh>
 
 ## References
 
