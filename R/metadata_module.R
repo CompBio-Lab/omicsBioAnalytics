@@ -69,6 +69,17 @@ metadata_ui <- function(id) {
               "#chisq_conclusion {color: red;}"),
             shiny::textOutput(ns("chisq_conclusion")))
         )
+      ),
+      shiny::tabPanel("General data overview",
+        shiny::h3("Totals"),
+        shiny::tableOutput(ns("summary_table")),
+        shiny::textOutput(ns("sample_removal_note")),
+        tags$head(
+          includeCSS("www/styles.css")),
+        shiny::h3("Continuous variables"),
+        shiny::htmlOutput(ns("summary_table_cont")),
+        shiny::h3("Categorical variables"),
+        shiny::htmlOutput(ns("summary_table_cat"))
       )
     ))
   )
@@ -123,6 +134,7 @@ metadata_server <- function(input, output, session,
   response_var <- data_upload_ui_vars$response_var()
   demo <- data_upload_server_vars$get_demo_data()
   response <- data_upload_server_vars$response()
+  response_raw <- data_upload_server_vars$response_raw()
   demo_split <- omicsBioAnalytics::splitData(demo,
     group = response_var, trim = 0.8)
 
@@ -349,23 +361,73 @@ metadata_server <- function(input, output, session,
           }) %>% t))
         googleVis::gvisTable(cbind(" " = rownames(d), d))
       })
-      output$chisq_test <- shiny::renderPrint({
-        chisq.test(demo[, metadata_ui_vars$cat_var()], response)
-      })
-      output$chisq_conclusion <- shiny::renderText({
-        pval <- chisq.test(demo[, metadata_ui_vars$cat_var()], response)$p.value
-        ifelse(pval < 0.05,
-          paste0("There is a statistically significant
-          association (at p<0.05) between ",
-            metadata_ui_vars$cat_var(), " and ",
-            response_var, " (p-value = ", signif(pval, 3), ")."),
-          paste0("There is no statistically significant
-          association (at p<0.05) between ",
-            metadata_ui_vars$cat_var(), " and ",
-            response_var, " (p-value = ", signif(pval, 3), ")."))
-      })
-      output$chisq_title <- shiny::renderText({
-        metadata_ui_vars$cat_var()})
+    })
+    observeEvent(list(metadata_ui_vars$cat_var(), response), {
+      if (length(unique(na.omit(demo[[metadata_ui_vars$cat_var()]]))) > 1) {
+        output$chisq_test <- shiny::renderPrint({
+          chisq.test(demo[, metadata_ui_vars$cat_var()], response)
+        })
+        output$chisq_conclusion <- shiny::renderText({
+          pval <- chisq.test(demo[, metadata_ui_vars$cat_var()], response)$p.value
+          ifelse(pval < 0.05,
+            paste0("There is a statistically significant
+            association (at p<0.05) between ",
+              metadata_ui_vars$cat_var(), " and ",
+              response_var, " (p-value = ", signif(pval, 3), ")."),
+            paste0("There is no statistically significant
+            association (at p<0.05) between ",
+              metadata_ui_vars$cat_var(), " and ",
+              response_var, " (p-value = ", signif(pval, 3), ")."))
+        })
+        output$chisq_title <- shiny::renderText({
+          metadata_ui_vars$cat_var()})
+      } else {
+        output$chisq_test <- renderText("")
+        output$chisq_conclusion <- renderText(
+          "! The selected variable has only 1 level (1 unique value). A Chi-square test cannot be performed.")
+        output$chisq_title <- renderText("")
+      }
     })
   }
-}
+
+
+  #@@@@@@@@@@@@@@@@@@@@@@@ Summary tables panel @@@@@@@@@@@@@@@@@@@@@@@#
+
+  output$summary_table <- shiny::renderTable({
+    matrix(
+      c("Samples", nrow(demo),
+        "Continuous variables", length(colnames(demo_split$data.cont)),
+        "Categorical variables", length(colnames(demo_split$data.cat)),
+        "Removed samples", length(response_raw) - length(response)),
+      ncol = 2, byrow = TRUE
+      )
+    }, colnames = FALSE)
+
+  output$sample_removal_note <- shiny::renderText({
+    paste0("Samples are removed if the response variable contains an NA value")
+  })
+
+  output$summary_table_cont <- shiny::renderUI({
+    cont_var <- setdiff(colnames(demo_split$data.cont), data_upload_ui_vars$response_var())
+    response <- data_upload_ui_vars$response_var()
+    demo_cont <- demo
+    demo_cont[cont_var] <- lapply(demo_cont[cont_var], as.numeric)
+    tbl <- table1::table1(
+        as.formula(paste("~", paste(cont_var, collapse = " + "), "|", response)),
+        data = demo_cont,
+        render.continuous=c(
+          .="Mean (SD)", .="Median", .="Min", .="Max"))
+    HTML(tbl)
+      })
+
+  output$summary_table_cat <- shiny::renderUI({
+    cat_var <- setdiff(colnames(demo_split$data.cat), data_upload_ui_vars$response_var())
+    response <- data_upload_ui_vars$response_var()
+    demo_cat <- demo
+    demo_cat[cat_var] <- lapply(demo_cat[cat_var], as.character)
+    tbl <- table1::table1(
+        as.formula(paste("~", paste(cat_var, collapse = "+"), "|", response)),
+        data = demo_cat)
+    HTML(tbl)
+    })
+  }

@@ -58,6 +58,7 @@ Imports:
     shinydashboard,
     shinyjs,
     sortable,
+	table1,
     tidyr,
     UpSetR,
     visNetwork,
