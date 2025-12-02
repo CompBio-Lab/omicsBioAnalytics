@@ -79,7 +79,11 @@ biomarker_discovery_analysis_ui <- function(id, dataset_names, response, respons
                     shiny::column(6,
                       shiny::tags$div(
                         shiny::h4("Optimal biomarker panels", align = "center"),
-                        DT::dataTableOutput(ns("aucs")), style = 'padding:100px 100px 0px 0px;')
+                        DT::dataTableOutput(ns("aucs")),
+                        shiny::downloadButton(ns("perf"),
+                                              label = shiny::HTML("<span style='font-size:1em;'>Download metrics</span>"),
+                                              style = "color: #fff; background-color: #FF7F00; border-color: #2e6da4"),
+                        style = 'padding:100px 100px 0px 0px;')
                     )
                   )),
                 shiny::tabPanel("Panels",
@@ -99,7 +103,9 @@ biomarker_discovery_analysis_ui <- function(id, dataset_names, response, respons
                   shiny::fluidRow(
                     shiny::column(12, shiny::h4("Overlap between single and ensemble biomarker panels"),
                     shiny::plotOutput(ns("panelN")),
-                    shiny::downloadButton(ns("biomarkerPanels"), label = shiny::HTML("<span style='font-size:1em;'>Download<br/>Biomarkers</span>"), style = "color: #fff; background-color: #FF7F00; border-color: #2e6da4")
+                    shiny::downloadButton(ns("biomarkerPanels"),
+                                          label = shiny::HTML("<span style='font-size:1em;'>Download<br/>Biomarkers</span>"),
+                                          style = "color: #fff; background-color: #FF7F00; border-color: #2e6da4")
                   ))
                 ),
                 shiny::tabPanel("PCA plots",
@@ -454,7 +460,7 @@ biomarker_discovery_analysis_server <- function(input, output, session, datasets
 
     output$biomarkerPanels <- shiny::downloadHandler(
       filename = function() {
-        paste("BiomarkerPanels_multiomics_HFhospitalizations_", Sys.Date(), ".txt", sep = "")
+        paste("BiomarkerPanels_", Sys.Date(), ".txt", sep = "")
       },
       content = function(file) {
         write.table(rbind(data.frame(dataset = rep(names(singlePanel), sapply(singlePanel, length)),
@@ -466,6 +472,18 @@ biomarker_discovery_analysis_server <- function(input, output, session, datasets
           file,
           sep = "\t",
           row.names = FALSE)
+      }
+    )
+
+    output$perf <- shiny::downloadHandler(
+      filename = function() {
+        paste("perf_metrics_", Sys.Date(), ".txt", sep = "")
+      },
+      content = function(file) {
+        write.table(rocTable,
+                    file,
+                    sep = "\t",
+                    row.names = FALSE)
       }
     )
 
